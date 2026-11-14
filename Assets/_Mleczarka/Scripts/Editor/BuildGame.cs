@@ -16,6 +16,7 @@ namespace Mleczarka.EditorTools
         {
             if (!File.Exists(Scene)) { Debug.LogError("[Mleczarka] Brak sceny " + Scene); return; }
             string dir = Path.GetFullPath("Builds/Windows");
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
             Directory.CreateDirectory(dir);
             var options = new BuildPlayerOptions
             {
@@ -32,7 +33,17 @@ namespace Mleczarka.EditorTools
             string msg = $"[Mleczarka] Budowanie: {s.result}, {s.totalSize / (1024f * 1024f):0} MB, {s.totalTime.TotalMinutes:0.0} min, błędy: {s.totalErrors}. Plik: {options.locationPathName}";
             Directory.CreateDirectory("Screenshots");
             File.WriteAllText("Screenshots/budowanie.txt", msg + "\n" + string.Join("\n", report.steps.SelectMany(st => st.messages).Where(m => m.type == LogType.Error || m.type == LogType.Exception).Select(m => m.content).Take(30)));
-            if (s.result == BuildResult.Succeeded) { Debug.Log(msg); EditorUtility.RevealInFinder(options.locationPathName); }
+            if (s.result == BuildResult.Succeeded)
+            {
+                // Paczka do przeniesienia na inny komputer: bez folderów debugowania.
+                string zip = Path.GetFullPath("Builds/Mleczarka_Windows.zip");
+                if (File.Exists(zip)) File.Delete(zip);
+                foreach (var d in Directory.GetDirectories(dir, "*DoNotShip*")) Directory.Delete(d, true);
+                System.IO.Compression.ZipFile.CreateFromDirectory(dir, zip, System.IO.Compression.CompressionLevel.Optimal, true);
+                msg += $" · ZIP: {new FileInfo(zip).Length / (1024f * 1024f):0} MB ({zip})";
+                File.WriteAllText("Screenshots/budowanie.txt", msg);
+                Debug.Log(msg);
+            }
             else Debug.LogError(msg);
         }
     }
