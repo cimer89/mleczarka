@@ -42,7 +42,7 @@ namespace Mleczarka.Player
         Renderer[] _renderers;
         InputAction _move, _look, _sprint, _jump, _interact;
         Vector3 _velocity;
-        float _speed, _airTime;
+        float _speed, _airTime, _zoomFoot = 1f, _zoomVehicle = 1f;
         bool _jumping;
         WheeledVehicle _vehicle;
 
@@ -111,7 +111,20 @@ namespace Mleczarka.Player
             float k = isMouse ? lookSensitivityMouse : lookSensitivityStick * Time.deltaTime;
             orbital.HorizontalAxis.Value += look.x * k;
             orbital.VerticalAxis.Value = Mathf.Clamp(orbital.VerticalAxis.Value - look.y * k, -5f, 60f);
-            orbital.Radius = Mathf.Lerp(orbital.Radius, _vehicle ? cameraRadiusInVehicle : cameraRadiusOnFoot, Time.deltaTime * 3f);
+            // kółko myszy: przybliżanie / oddalanie (osobno pieszo i w pojeździe)
+            var m = Mouse.current;
+            if (m != null && !InputBlocked)
+            {
+                float wheel = m.scroll.ReadValue().y;
+                if (Mathf.Abs(wheel) > 0.01f)
+                {
+                    float step = Mathf.Sign(wheel) * 0.12f;
+                    if (_vehicle) _zoomVehicle = Mathf.Clamp(_zoomVehicle * (1f - step), 0.45f, 2.6f);
+                    else _zoomFoot = Mathf.Clamp(_zoomFoot * (1f - step), 0.3f, 2.6f);
+                }
+            }
+            float want = _vehicle ? cameraRadiusInVehicle * _zoomVehicle : cameraRadiusOnFoot * _zoomFoot;
+            orbital.Radius = Mathf.Lerp(orbital.Radius, want, Time.deltaTime * 6f);
         }
 
         void Walk()

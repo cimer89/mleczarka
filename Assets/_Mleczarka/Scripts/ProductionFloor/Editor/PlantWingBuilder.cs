@@ -297,8 +297,15 @@ namespace Mleczarka.ProductionFloor.EditorTools
             }
             go.transform.localPosition = new Vector3(p.x, 0, p.z);
             // stopa maszyny na posadzce
+            // lampka stanu leży w modelu w środku podstawy (poniżej posadzki) — liczymy stopę bez niej,
+            // a lampkę stawiamy na górze korpusu; wcześniej zaniżała dół i maszyny wisiały 16 cm nad posadzką
             var b = Bounds(go); go.transform.position += Vector3.up * (root.position.y - b.min.y);
             b = Bounds(go);
+            foreach (var lr in go.GetComponentsInChildren<Renderer>().Where(r => r.name.EndsWith("_Lampka")))
+            {
+                var lb = lr.bounds; var top = new Vector3(b.center.x, b.max.y, b.center.z);
+                lr.transform.position += top - new Vector3(lb.center.x, lb.min.y, lb.center.z) + Vector3.up * 0.01f;
+            }
             var col = go.AddComponent<BoxCollider>();
             col.center = go.transform.InverseTransformPoint(b.center);
             var ls = go.transform.InverseTransformVector(b.size); col.size = new Vector3(Mathf.Abs(ls.x), Mathf.Abs(ls.y), Mathf.Abs(ls.z)) * 0.92f;
@@ -529,7 +536,7 @@ namespace Mleczarka.ProductionFloor.EditorTools
 
         static Bounds Bounds(GameObject go)
         {
-            var rs = go.GetComponentsInChildren<Renderer>();
+            var rs = go.GetComponentsInChildren<Renderer>().Where(r => !r.name.EndsWith("_Lampka")).ToArray();
             if (rs.Length == 0) return new Bounds(go.transform.position, Vector3.one);
             var b = rs[0].bounds; foreach (var r in rs.Skip(1)) b.Encapsulate(r.bounds); return b;
         }
