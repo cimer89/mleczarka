@@ -1,3 +1,10 @@
+# STAN NA 2026-11-14, 13:05 — podświetlenia maszyn (Claude)
+
+- `PlantGuide`: maszyny, przy których trzeba teraz coś zrobić, mają świecące pole obsługi, pulsującą strzałkę z napisem (TUTAJ / NAPRAW / UMYJ / ODBIERZ / ODŁÓŻ / START) i światło w kolorze zadania. U góry ekranu pasek „Co dalej” z czynnością, produktem i odległością.
+- Kolejność: awaria → czynność przy partii (najdalej zaawansowana pierwsza) → mycie brudnej maszyny, na którą czeka partia → odbiór skrzynek / chłodnia → próbka w laboratorium → start partii przy przyjęciu. Gdy maszyny pracują same — „pracuje sama, jeszcze ok. N s”.
+- Przy panelu przyjęcia wszystkie maszyny trasy wybranego produktu mają numery etapów 1, 2, 3…; panel maszyny pokazuje trasę partii z bieżącym etapem.
+- Sprawdzone w trybie gry (podgląd skrzydła). Uwaga: odświeżanie Unity w trakcie Play psuje sesję gry (domena skryptów) — przed odświeżeniem zatrzymywać Play.
+
 # STAN NA 2026-11-14, 12:50 — wersja bez pracowników i bez limitów czasu (Claude)
 
 - **Bez pracowników (domyślnie):** `PlantState.workersOff = true`. Halę obsługuje tylko gracz; pracownicy z zapisu zostają, ale nie chodzą, nie pracują i nie dostają pensji. Zatrudnianie i przypisywanie zablokowane. Przełącznik w menu Escape („Pracownicy w hali: wyłączeni / włączeni”).

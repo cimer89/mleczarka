@@ -35,6 +35,8 @@ namespace Mleczarka.ProductionFloor
         PlayerState P => G.Sim.S.players[GameController.Me];
 
         PlantMachineView _near;
+        public PlantMachineView NearView => _near;
+        public Product SelectedProduct => Order[_productIndex];
         StartMenuUI _menu;
         float _nextHold;
         int _productIndex, _qty = 2;
@@ -72,6 +74,7 @@ namespace Mleczarka.ProductionFloor
             G.SimEvent += OnSimEvent;
             _fx = new GameObject("Skrzydło — animacja procesu").transform; _fx.SetParent(wingRoot ? wingRoot : transform, false);
             foreach (var j in P.plant.jobs) if (j.machine != null) _lastMachine[j.id] = j.machine;
+            if (!GetComponent<PlantGuide>()) gameObject.AddComponent<PlantGuide>().floor = this;
             _playerAnim = G.player.GetComponentInChildren<Animator>();
             _playerHasWork = _playerAnim && _playerAnim.runtimeAnimatorController && _playerAnim.parameters.Any(p => p.name == "Work");
         }
@@ -538,7 +541,7 @@ namespace Mleczarka.ProductionFloor
                 _title = new GUIStyle(_text) { fontSize = 24, fontStyle = FontStyle.Bold };
             }
             float W = Mathf.Min(620, Screen.width / scale - 32), x = 16, inner = W - 32;
-            float H = 430, top = Mathf.Max(8, Screen.height / scale - 150 - H);
+            float H = 456, top = Mathf.Max(8, Screen.height / scale - 150 - H);
             var accent = new Color(0.29f, 0.83f, 0.73f);
             Fill(new Rect(x, top, W, H), new Color(0.035f, 0.12f, 0.15f, 0.95f)); Fill(new Rect(x, top, 4, H), accent);
             float y = top + 10, lx = x + 16;
@@ -568,6 +571,9 @@ namespace Mleczarka.ProductionFloor
             var j = v.Job;
             if (j != null)
             {
+                var route = PlantData.Route(j.product);
+                string rt = string.Join(" → ", route.Select((t, i) => { string n = PlantData.Machines.First(x => x.Type == t).Name.Split(' ')[0]; return i < j.stage ? $"<color=#7fe0a0>{n}</color>" : i == j.stage ? $"<b><color=#ffd166>{n}</color></b>" : $"<color=#9bb>{n}</color>"; }));
+                GUI.Label(new Rect(lx, y, inner, 22), "Trasa: " + rt, _small); y += 24;
                 var steps = PlantSim.StepsOf(j);
                 for (int i = 0; i < steps.Length; i++)
                 {
