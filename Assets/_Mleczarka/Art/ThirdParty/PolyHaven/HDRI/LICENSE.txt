@@ -1,0 +1,4 @@
+Poly Haven HDRI — licencja CC0 1.0 (domena publiczna), https://polyhaven.com/license
+Pliki: kloofendal_48d_partly_cloudy_puresky, qwantani_late_afternoon_puresky, qwantani_dusk_1_puresky (wersje 2k).
+Autorzy: zgodnie ze stronami tych HDRI na polyhaven.com (CC0 nie wymaga podpisu).
+Źródło: biblioteka Game Assets/09_HDRI_PolyHaven.
