@@ -42,7 +42,8 @@ namespace Mleczarka.Player
         Renderer[] _renderers;
         InputAction _move, _look, _sprint, _jump, _interact;
         Vector3 _velocity;
-        float _speed;
+        float _speed, _airTime;
+        bool _jumping;
         WheeledVehicle _vehicle;
 
         static readonly int SpeedId = Animator.StringToHash("Speed");
@@ -131,22 +132,30 @@ namespace Mleczarka.Player
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnSpeed * (OnBike ? 0.35f : 1f) * Time.deltaTime);
             }
 
+            // isGrounded CharacterControllera migocze na nierównym terenie i przy schodzeniu ze zbocza —
+            // krótki margines (0,15 s) zamiast surowej wartości, inaczej postać "pływa" w pozie skoku po ziemi.
             bool grounded = _cc.isGrounded;
-            if (grounded && _velocity.y < 0f) _velocity.y = -2f;
-            if (grounded && !OnBike && _jump.WasPressedThisFrame())
+            _airTime = grounded ? 0f : _airTime + Time.deltaTime;
+            if (grounded && _velocity.y < 0f) { _velocity.y = -2f; _jumping = false; }
+            bool nearGround = _airTime < 0.15f && !_jumping;
+            if (nearGround && !OnBike && _jump.WasPressedThisFrame())
             {
                 _velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-                if (_anim) _anim.SetTrigger(JumpId);
+                _jumping = true; _airTime = 0.15f;
+                if (_anim) { _anim.ResetTrigger(JumpId); _anim.SetTrigger(JumpId); }
             }
+            // przy zejściu ze zbocza docisk do ziemi, żeby nie odrywać się na każdym garbie
+            if (!grounded && !_jumping && _airTime < 0.15f && _velocity.y < 0f) _velocity.y = Mathf.Min(_velocity.y, -6f);
             _velocity.y += gravity * Time.deltaTime;
 
             Vector3 horizontal = (dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward * 0f) * _speed;
             _cc.Move((horizontal + Vector3.up * _velocity.y) * Time.deltaTime);
+            if (_cc.isGrounded) _airTime = 0f;
 
             if (_anim)
             {
                 _anim.SetFloat(SpeedId, OnBike ? 0f : _speed, 0.1f, Time.deltaTime);
-                _anim.SetBool(GroundedId, _cc.isGrounded);
+                _anim.SetBool(GroundedId, _cc.isGrounded || (_airTime < 0.15f && !_jumping));
             }
         }
 
@@ -164,6 +173,9 @@ namespace Mleczarka.Player
         /// <summary>Kariera: zwraca komunikat, gdy pojazdu nie wolno jeszcze używać (null = można).</summary>
         public static System.Func<WheeledVehicle, string> CanEnter;
         public static event System.Action<string> Locked;
+        /// <summary>Rower (dom gracza): odległość do zaparkowanego roweru i wsiadanie / zsiadanie — E działa jak B.</summary>
+        public static System.Func<float> BikeDistance;
+        public static System.Action BikeToggle;
 
         // ---------- rower (kariera) ----------
         public bool OnBike { get; private set; }
@@ -204,7 +216,8 @@ namespace Mleczarka.Player
                 return;
             }
 
-            if (OnBike) return;
+            if (OnBike) { BikeToggle?.Invoke(); return; }
+            float bikeD = BikeDistance != null ? BikeDistance() : float.MaxValue;
             WheeledVehicle best = null;
             float bestD = enterDistance;
             foreach (var v in FindObjectsByType<WheeledVehicle>(FindObjectsSortMode.None))
@@ -212,6 +225,7 @@ namespace Mleczarka.Player
                 float d = Vector3.Distance(v.transform.position, transform.position);
                 if (d < bestD) { best = v; bestD = d; }
             }
+            if (bikeD < 2.5f && (!best || bikeD < bestD) && BikeToggle != null) { BikeToggle(); return; }
             if (!best) return;
             var lockMsg = CanEnter?.Invoke(best);
             if (!string.IsNullOrEmpty(lockMsg)) { Locked?.Invoke(lockMsg); return; }

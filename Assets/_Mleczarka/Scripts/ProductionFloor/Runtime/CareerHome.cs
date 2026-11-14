@@ -42,11 +42,6 @@ namespace Mleczarka.ProductionFloor
         void Start()
         {
             if (!G) { enabled = false; return; }
-            if (!Active)
-            {
-                // poza karierą dom jest tylko dekoracją; rower stoi zaparkowany
-                return;
-            }
             if (bike)
                 foreach (var t in bike.GetComponentsInChildren<Transform>(true))
                 {
@@ -54,6 +49,10 @@ namespace Mleczarka.ProductionFloor
                     else if (t.name.EndsWith("Kolo_Tyl_ObrotX")) _bikeRear = t;
                     else if (t.name.EndsWith("Korba_ObrotX")) _bikeCrank = t;
                 }
+            // rower działa w każdym trybie: B albo E przy rowerze
+            Mleczarka.Player.FarmerController.BikeDistance = BikeDistance;
+            Mleczarka.Player.FarmerController.BikeToggle = ToggleBike;
+            if (!Active) return; // poza karierą kuchnia jest tylko dekoracją
             if (pantryJars) foreach (Transform t in pantryJars.GetComponentsInChildren<Transform>(true)) if (t.name.Contains("_Sloik_")) _jars.Add(t);
             _jars.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
             if (potLid) _lidPos = potLid.localPosition;
@@ -72,10 +71,27 @@ namespace Mleczarka.ProductionFloor
         static readonly string[] AllStations = { "kuchenka", "lodowka", "stol", "maselnica", "wirowka", "prasa", "polka" };
         IEnumerable<Recipe> RecipesAt(string station) => CareerData.Recipes.Where(r => r.Station == station);
 
+        float BikeDistance()
+        {
+            if (!bike || !G || !G.player || !bike.gameObject.activeInHierarchy || G.player.OnBike) return float.MaxValue;
+            var d = bike.position - G.player.transform.position; d.y = 0; return d.magnitude;
+        }
+
+        void OnDestroy()
+        {
+            if (Mleczarka.Player.FarmerController.BikeToggle == (System.Action)ToggleBike) { Mleczarka.Player.FarmerController.BikeToggle = null; Mleczarka.Player.FarmerController.BikeDistance = null; }
+        }
+
         void Update()
         {
-            if (!Active) return;
             var kb = Keyboard.current;
+            if (!Active)
+            {
+                if (!_menu) _menu = FindFirstObjectByType<StartMenuUI>();
+                if (kb != null && kb.bKey.wasPressedThisFrame && G.player && !G.player.CurrentVehicle && !G.player.InputBlocked && !(_menu && _menu.IsOpen)) ToggleBike();
+                SpinBike();
+                return;
+            }
             // sprzęt widoczny po zakupie
             foreach (var s in stations) if (s.showWhenOwned) s.showWhenOwned.SetActive(string.IsNullOrEmpty(s.ownedId) || P.career.owned.Contains(s.ownedId));
             _near = null;
@@ -93,7 +109,7 @@ namespace Mleczarka.ProductionFloor
             {
                 if (kb.kKey.wasPressedThisFrame && G.player && !(_menu && _menu.IsOpen)) ToggleShop(!_shop);
                 if (_shop && kb.escapeKey.wasPressedThisFrame) ToggleShop(false);
-                if (!_shop && kb.bKey.wasPressedThisFrame && G.player && !G.player.CurrentVehicle) ToggleBike();
+                if (!_shop && kb.bKey.wasPressedThisFrame && G.player && !G.player.CurrentVehicle && !(_menu && _menu.IsOpen)) ToggleBike();
                 if (!_shop && !Blocked() && _near != null) HandleKeys(kb);
             }
             Animate();
@@ -119,12 +135,12 @@ namespace Mleczarka.ProductionFloor
                 return;
             }
             float d = Vector3.Distance(bike.position, G.player.transform.position);
-            if (d > 3f) { G.Say($"Rower stoi {d:0} m stąd — podejdź do niego (B).", true); return; }
+            if (d > 3f) { G.Say($"Rower stoi {d:0} m stąd — podejdź do niego (E albo B).", true); return; }
             G.player.transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(bike.forward, Vector3.up));
             bike.SetParent(G.player.transform, false);
             bike.localPosition = Vector3.zero; bike.localRotation = Quaternion.identity;
             G.player.SetBike(true, bike);
-            G.Say("Na rowerze: W/S — jazda, Shift — szybciej, B — zsiądź.");
+            G.Say("Na rowerze: WASD — jazda, Shift — szybciej, E albo B — zsiądź.");
         }
 
         void HandleKeys(Keyboard kb)
@@ -175,6 +191,15 @@ namespace Mleczarka.ProductionFloor
             return d.Kind == StepKind.Auto || (Time.time - _handsAt < 0.8f && _near != null && _near.id == station);
         }
 
+        void SpinBike()
+        {
+            if (!G.player || !G.player.OnBike) return;
+            float spin = G.player.CurrentSpeed / 0.34f * Mathf.Rad2Deg * Time.deltaTime;
+            if (_bikeFront) _bikeFront.localRotation *= Quaternion.AngleAxis(spin, Vector3.right);
+            if (_bikeRear) _bikeRear.localRotation *= Quaternion.AngleAxis(spin, Vector3.right);
+            if (_bikeCrank) _bikeCrank.localRotation *= Quaternion.AngleAxis(spin * 0.45f, Vector3.right);
+        }
+
         void Animate()
         {
             float t = Time.time, dt = Time.deltaTime; var c = P.career;
@@ -189,14 +214,7 @@ namespace Mleczarka.ProductionFloor
                 fridgeDoor.localRotation = Quaternion.Slerp(fridgeDoor.localRotation, _doorRot * Quaternion.AngleAxis(open ? -95 : 0, Vector3.up), dt * 5);
             }
             for (int i = 0; i < _jars.Count; i++) _jars[i].gameObject.SetActive(i < c.pantry.Sum());
-            if (G.player && G.player.OnBike)
-            {
-                float v = G.player.CurrentSpeed;
-                float spin = v / 0.34f * Mathf.Rad2Deg * dt;
-                if (_bikeFront) _bikeFront.localRotation *= Quaternion.AngleAxis(spin, Vector3.right);
-                if (_bikeRear) _bikeRear.localRotation *= Quaternion.AngleAxis(spin, Vector3.right);
-                if (_bikeCrank) _bikeCrank.localRotation *= Quaternion.AngleAxis(spin * 0.45f, Vector3.right);
-            }
+            SpinBike();
             if (canOnBike) canOnBike.gameObject.SetActive(true);
             SyncBasket();
             for (int i = _puffs.Count - 1; i >= 0; i--)
@@ -244,10 +262,23 @@ namespace Mleczarka.ProductionFloor
             _title = new GUIStyle(_text) { fontSize = 24, fontStyle = FontStyle.Bold };
         }
 
+        GUIStyle _hint;
+        void BikeHint()
+        {
+            if (G.player.CurrentVehicle || G.player.InputBlocked) return;
+            string msg = G.player.OnBike ? null : (BikeDistance() < 2.5f ? "E / B — wsiądź na rower" : null);
+            if (msg == null) return;
+            if (_hint == null) _hint = new GUIStyle(GUI.skin.box) { fontSize = Mathf.RoundToInt(18 * Mathf.Clamp(Screen.width / 1500f, 0.8f, 1.6f)), alignment = TextAnchor.MiddleCenter, padding = new RectOffset(14, 14, 8, 8) };
+            var size = _hint.CalcSize(new GUIContent(msg));
+            GUI.Box(new Rect((Screen.width - size.x) / 2, Screen.height * 0.72f, size.x, size.y), msg, _hint);
+        }
+
         void OnGUI()
         {
-            if (!Active || !G.player) return;
+            if (!G || !G.player) return;
             if (_menu && _menu.IsOpen) return;
+            BikeHint();
+            if (!Active) return;
             float scale = Mathf.Clamp(Screen.width / 1500f, 0.65f, 1.5f);
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
             Styles();
