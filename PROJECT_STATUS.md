@@ -1,3 +1,10 @@
+# STAN NA 2026-11-14, 22:30 — rower i skok (Claude)
+
+- **Rower w każdym trybie:** E albo B przy rowerze przy domu (letnia kuchnia), podpowiedź „E / B — wsiądź na rower”. Wcześniej działał tylko w karierze, więc w starym zapisie i trybie swobodnym nie dało się wsiąść.
+- **Skok bez ślizgania:** Grounded wygładzone (0,15 s) i docisk do zbocza — w biegu postać nie wpada w pozę skoku/lądowania na nierównym terenie; krótsze odbicie; po lądowaniu w biegu od razu bieg (JumpAnimFix zmienia przejścia w Rolnik.controller).
+- **Test w grze** (menu Testy → Rower i skok, bez zapisu): E wsiada/zsiada; bieg 2,5 s po rynku — 0 klatek w pozie skoku; skok w biegu: Ruch → Skok → W powietrzu → Ruch (bez Lądowania), skok w miejscu z lądowaniem.
+- **Wydanie:** v0.2 (Releases) z tą poprawką; instalacja: INSTALACJA.md.
+
 # STAN NA 2026-11-14, 17:20 — działy, tabliczki, kariera „od kuchni” (Claude)
 
 **Działy produkcyjne (skrzydło maszyn):** 6 działów — 1 Przyjęcie i laboratorium, 2 Mleko płynne, 3 Fermentacja, 4 Masło i sery, 5 Rozlew i pakowanie, 6 Chłodnia. Przeszklone ścianki z drzwiami od korytarza, pełne ścianki między działami (górą rury), otwór w ściance na taśmę zbiorczą, kolor posadzki działu. Chłodnia obrócona drzwiami do korytarza. Obsługa maszyny tylko z pola obsługi (nie przez szybę). Pracownicy chodzą przez drzwi działów.
