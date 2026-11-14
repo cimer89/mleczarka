@@ -1,3 +1,8 @@
+# STAN NA 2026-11-14, 13:20 — widok we wnętrzu hali (Claude)
+
+- `FactoryShellVisibility`: zamiast chowania wszystkich ścian i dachu po wejściu chowają się tylko bryły, które zasłaniają gracza przed kamerą (linia kamera → głowa, pierś, stopy). Reszta ścian, okna, dźwigary i dach zostają. Dotyczy hali Codexa i skrzydła maszyn. Sprawdzone w trybie gry.
+- Podgląd skrzydła (menu 12) na czas zdjęć z góry chowa ściany i dach sam.
+
 # STAN NA 2026-11-14, 13:05 — podświetlenia maszyn (Claude)
 
 - `PlantGuide`: maszyny, przy których trzeba teraz coś zrobić, mają świecące pole obsługi, pulsującą strzałkę z napisem (TUTAJ / NAPRAW / UMYJ / ODBIERZ / ODŁÓŻ / START) i światło w kolorze zadania. U góry ekranu pasek „Co dalej” z czynnością, produktem i odległością.

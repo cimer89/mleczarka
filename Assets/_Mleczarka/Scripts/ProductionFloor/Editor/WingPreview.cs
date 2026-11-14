@@ -103,7 +103,11 @@ namespace Mleczarka.ProductionFloor.EditorTools
         {
             _cam.transform.position = pos; _cam.transform.LookAt(look); _cam.fieldOfView = fov;
             var rt = new RenderTexture(1280, 720, 24); _cam.targetTexture = rt;
+            // podgląd z góry: ściany i dach na chwilę schowane (w grze chowają się tylko zasłaniające gracza)
+            var shell = Object.FindObjectsByType<FactoryShellVisibility>(FindObjectsSortMode.None).SelectMany(v => v.shell).Where(r => r).ToList();
+            var was = shell.Select(r => r.enabled).ToList(); foreach (var r in shell) r.enabled = false;
             _cam.Render(); _cam.Render();
+            for (int i = 0; i < shell.Count; i++) shell[i].enabled = was[i];
             var prev = RenderTexture.active; RenderTexture.active = rt;
             var tex = new Texture2D(1280, 720, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0); tex.Apply();
             File.WriteAllBytes(Dir + name + ".jpg", tex.EncodeToJPG(85));
