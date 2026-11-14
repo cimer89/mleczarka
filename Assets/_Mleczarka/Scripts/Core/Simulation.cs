@@ -31,6 +31,7 @@ namespace Mleczarka.Core
         {
             foreach (var p in s.players)
             {
+                CareerSim.Ensure(p);
                 // tablice produktów rosną razem z listą produktów (stare zapisy miały 2–4 pozycje)
                 p.packingRack = Grow(p.packingRack); p.carried = Grow(p.carried); p.store = Grow(p.store);
                 p.vanCargo = Grow(p.vanCargo); p.made = Grow(p.made);
@@ -67,7 +68,7 @@ namespace Mleczarka.Core
 
         public static GameState NewGame(GameMode mode = GameMode.Misja, uint seed = 12345)
         {
-            var S = new GameState { mode = mode, calm = mode == GameMode.Misja, rng = seed == 0 ? 1u : seed, nextOrderT = GameConfig.OrderSpawnSeconds };
+            var S = new GameState { mode = mode, calm = mode != GameMode.Swobodna, rng = seed == 0 ? 1u : seed, nextOrderT = GameConfig.OrderSpawnSeconds };
             S.players.Add(MkPlayer(0, "Twoja mleczarnia", GameConfig.StartMoney, false));
             S.players.Add(MkPlayer(1, "Mleczpol", GameConfig.RivalMoney, true));
             for (int i = 0; i < GameData.Farms.Length; i++)
@@ -86,6 +87,7 @@ namespace Mleczarka.Core
                 S.orders.Add(MkOrder(S, "Restauracja", "restaurant", Items((Product.Uht, 3), (Product.Jogurt, 2)), 60, L, true, 0));
             }
             else for (int i = 0; i < 3; i++) S.orders.Add(GenOrder(S));
+            if (mode == GameMode.Kariera) CareerSim.Start(S);
             return S;
         }
 
@@ -144,6 +146,7 @@ namespace Mleczarka.Core
         // ---------------- miejsca ----------------
 
         Place PlaceOf(int pid) => Places?.PlaceOf(pid) ?? Place.None;
+        internal Place PlaceOfPublic(int pid) => PlaceOf(pid);
         bool IsAt(int pid, PlaceKind kind, int farm = -1)
         {
             var pl = PlaceOf(pid);
@@ -468,6 +471,7 @@ namespace Mleczarka.Core
             var p = S.players[pid]; var f = S.farms[fid]; var I = OfferInfo(pid, fid);
             if (!p.ai && !IsAt(pid, PlaceKind.Gospodarstwo, fid)) return Fail("Ofertę składa się na miejscu, w gospodarstwie.");
             if (I.mine) return Fail("To już twoje gospodarstwo.");
+            if (!CareerSim.Allowed(p, "cysterna")) return Fail("Umowy na odbiór mleka wymagają cysterny. Na razie kupuj mleko do bańki (F).");
             if (I.protectedLeft > 0) return Fail($"Ta umowa jest chroniona jeszcze {Math.Ceiling(I.protectedLeft)} s.");
             price = M2(price);
             if (price < I.min - 1e-9) return Fail($"Zaproponuj co najmniej {Money.Zl(I.min)} zł za litr.");
@@ -583,7 +587,8 @@ namespace Mleczarka.Core
             {
                 S.nextOrderT = S.t + GameConfig.OrderSpawnSeconds;
                 int active = S.orders.Count(o => o.status == OrderStatus.Otwarte || o.status == OrderStatus.Przyjete);
-                if (active < GameConfig.OrderMaxActive) { S.orders.Add(GenOrder(S)); Emit("newOrder"); }
+                // kariera: zamówienia dla firm pojawiają się dopiero z dostawczakiem
+                if (active < GameConfig.OrderMaxActive && CareerSim.Allowed(p, "dostawczak")) { S.orders.Add(GenOrder(S)); Emit("newOrder"); }
             }
         }
 
@@ -632,6 +637,7 @@ namespace Mleczarka.Core
                         if (p.batches.Count > 0) BatchesTick(p, dt);   // partie zaczęte na dawnej linii kończą się normalnie
                     }
                     else { WorkersTick(p, dt); BatchesTick(p, dt); }
+                    if (CareerSim.Active(p)) CareerSim.Tick(this, p, dt);
                 }
             OrdersTick();
             RivalTick(dt);

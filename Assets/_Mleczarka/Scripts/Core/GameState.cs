@@ -6,7 +6,7 @@ namespace Mleczarka.Core
     // Stan gry jako zwykłe dane z polami publicznymi: ten sam obiekt służy do zapisu (JSON) i w przyszłości do synchronizacji.
     // Bez słowników i właściwości — tylko listy i tablice, żeby serializator Unity (JsonUtility) zapisywał wszystko.
 
-    public enum GameMode { Misja = 0, Swobodna = 1 }
+    public enum GameMode { Misja = 0, Swobodna = 1, Kariera = 2 }
     public enum VehicleKind { Cysterna = 0, Dostawczak = 1 }
     public enum OrderStatus { Otwarte = 0, Przyjete = 1, Dostarczone = 2, Przeterminowane = 3, Rywal = 4 }
     public enum PumpKind { Brak = 0, Odbior = 1, Rozladunek = 2 }
@@ -63,6 +63,8 @@ namespace Mleczarka.Core
         // Pełny ciąg maszyn (nowa hala). Gdy włączony, zastępuje uproszczone partie (batches).
         public PlantState plant = new PlantState();
         public double tankerQuality = 1;      // jakość mleka w cysternie (średnia z gospodarstw)
+        // Tryb kariery „od kuchni” (w pozostałych trybach nieaktywny)
+        public CareerState career = new CareerState();
     }
 
     [Serializable]

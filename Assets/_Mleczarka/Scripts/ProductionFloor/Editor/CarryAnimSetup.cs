@@ -14,7 +14,7 @@ namespace Mleczarka.ProductionFloor.EditorTools
         const string Q = "Assets/_Mleczarka/Art/ThirdParty/Quaternius/";
         const string Gen = "Assets/_Mleczarka/Art/Generated/Characters/";
 
-        [MenuItem("Mleczarka/Produkcja/13. Animacja noszenia skrzynek")]
+        [MenuItem("Mleczarka/Produkcja/13. Animacje postaci (noszenie, rower)")]
         public static void Run()
         {
             var clip = new[] { Q + "UniversalAnimationLibrary2/UAL2_Standard.fbx", Q + "UniversalAnimationLibrary/UAL1_Standard.fbx" }
@@ -45,10 +45,27 @@ namespace Mleczarka.ProductionFloor.EditorTools
                 var st = layer.stateMachine.AddState("Trzyma skrzynkę"); st.motion = clip;
                 layer.stateMachine.defaultState = st;
                 ls[ls.Length - 1] = layer; ctrl.layers = ls;
+                AddBike(ctrl);
                 EditorUtility.SetDirty(ctrl); n++;
             }
             AssetDatabase.SaveAssets();
             Debug.Log($"[Mleczarka] Warstwa noszenia dodana do {n} kontrolerów (klip {clip.name}, maska: ręce).");
+        }
+
+        /// <summary>Jazda na rowerze (kariera): stan „Rower” z klipem Driving_Loop — siedząca postać, ręce na kierownicy.</summary>
+        static void AddBike(AnimatorController ctrl)
+        {
+            var clip = AssetDatabase.LoadAllAssetsAtPath(Q + "UniversalAnimationLibrary/UAL1_Standard.fbx").OfType<AnimationClip>().FirstOrDefault(c => c.name == "Driving_Loop")
+                       ?? AssetDatabase.LoadAllAssetsAtPath(Q + "UniversalAnimationLibrary/UAL1_Standard.fbx").OfType<AnimationClip>().FirstOrDefault(c => c.name == "Sitting_Idle_Loop");
+            if (!clip) return;
+            var sm = ctrl.layers[0].stateMachine;
+            var old = sm.states.FirstOrDefault(s => s.state.name == "Rower").state;
+            if (old) sm.RemoveState(old);
+            foreach (var t in sm.anyStateTransitions.Where(t => t.destinationState == null || t.destinationState.name == "Rower").ToArray()) sm.RemoveAnyStateTransition(t);
+            if (!ctrl.parameters.Any(p => p.name == "Bike")) ctrl.AddParameter("Bike", AnimatorControllerParameterType.Bool);
+            var st = sm.AddState("Rower"); st.motion = clip;
+            var tin = sm.AddAnyStateTransition(st); tin.AddCondition(AnimatorConditionMode.If, 0, "Bike"); tin.hasExitTime = false; tin.duration = 0.2f; tin.canTransitionToSelf = false;
+            var tout = st.AddTransition(sm.defaultState); tout.AddCondition(AnimatorConditionMode.IfNot, 0, "Bike"); tout.hasExitTime = false; tout.duration = 0.2f;
         }
     }
 }

@@ -42,6 +42,11 @@ namespace Mleczarka.Gameplay
         {
             Instance = this;
             SaveFile save = null;
+#if UNITY_EDITOR
+            // test w edytorze: świeża gra w wybranym trybie, bez czytania i zapisywania zapisu gracza
+            int testMode = PlayerPrefs.GetInt("mleczarka_test_mode", -1);
+            if (testMode >= 0) { PlayerPrefs.DeleteKey("mleczarka_test_mode"); PendingNewGame = (GameMode)testMode; SuspendSaving = true; }
+#endif
             if (PendingNewGame.HasValue) { newGameMode = PendingNewGame.Value; PendingNewGame = null; StartedFresh = true; }
             else save = SaveSystem.Load(saveSlot);
             var state = save?.game ?? Simulation.NewGame(newGameMode, (uint)System.Environment.TickCount);
@@ -53,7 +58,18 @@ namespace Mleczarka.Gameplay
 
         void Start()
         {
+            FarmerController.CanEnter = VehicleLock;
+            FarmerController.Locked -= OnVehicleLocked; FarmerController.Locked += OnVehicleLocked;
+            var me = Sim.S.players[Me];
+            if (CareerSim.Active(me) && Sim.S.t <= 0 && player)
+            {
+                // kariera zaczyna się w domu, przy letniej kuchni
+                var home = WorldPlace.All.FirstOrDefault(w => w && w.kind == PlaceKind.Dom);
+                var spawn = home ? home.transform.Find("Start gracza") : null;
+                if (spawn) { var cc = player.GetComponent<CharacterController>(); if (cc) cc.enabled = false; player.transform.SetPositionAndRotation(spawn.position, spawn.rotation); if (cc) cc.enabled = true; }
+            }
             if (Sim.S.t > 0) Say($"Wczytano grę: dzień {Sim.Clock().day}, {Sim.Clock().text}.");
+            else if (CareerSim.Active(me)) Say("Kariera: masz rower, bańkę na mleko i letnią kuchnię. Kup mleko u gospodarzy (F), zrób twaróg i sprzedaj go na rynku. B — rower, K — rozwój.");
             else Say(Sim.S.mission.active ? $"Misja: {Sim.S.mission.title}. Zbierz mleko cysterną, zrób produkty i dowieź zamówienia na rynek." : "Nowa gra.");
         }
 
@@ -124,6 +140,11 @@ namespace Mleczarka.Gameplay
         {
             var p = Sim.S.players[Me]; var place = PlaceOf(Me); var v = player ? player.CurrentVehicle : null;
             bool tanker = v && p.vehicle == VehicleKind.Cysterna, van = v && p.vehicle == VehicleKind.Dostawczak;
+            if (CareerSim.Active(p))
+            {
+                string h = CareerHint(p, place, v, tanker, van);
+                if (h != null) return h;
+            }
             switch (place.Kind)
             {
                 case PlaceKind.Gospodarstwo:
@@ -145,6 +166,7 @@ namespace Mleczarka.Gameplay
         {
             var p = Sim.S.players[Me]; var place = PlaceOf(Me); var v = player ? player.CurrentVehicle : null;
             Result r = Result.Fail("Tu nie ma nic do zrobienia.");
+            if (CareerSim.Active(p) && CareerAction(p, place, v, ref r)) { if (!string.IsNullOrEmpty(r.Msg)) Say(r.Msg, !r.Ok); return; }
             switch (place.Kind)
             {
                 case PlaceKind.Gospodarstwo:
@@ -169,6 +191,66 @@ namespace Mleczarka.Gameplay
                     break;
             }
             if (!string.IsNullOrEmpty(r.Msg)) Say(r.Msg, !r.Ok);
+        }
+
+        // ---------- kariera „od kuchni” ----------
+
+        string CareerHint(PlayerState p, Place place, WheeledVehicle v, bool tanker, bool van)
+        {
+            var c = p.career;
+            switch (place.Kind)
+            {
+                case PlaceKind.Gospodarstwo:
+                    if (v) return null;
+                    var f = Sim.S.farms[place.FarmId];
+                    double price = Money.M2(f.price * CareerData.MilkPriceFactor);
+                    return $"F — kup mleko do bańki ({c.canister:0}/{c.canisterCap:0} l, {Money.Zl(price)} zł/l, mają {Mathf.FloorToInt((float)(f.stock * CareerData.LitersPerFarmUnit))} l)";
+                case PlaceKind.Dom:
+                    if (tanker) return "F — rozładuj mleko do lodówek";
+                    if (van) return "F — załaduj towar ze spiżarki";
+                    return c.canister >= 1 ? "F — przelej mleko z bańki do lodówki   ·   Q przy sprzęcie — gotowanie" : "F — weź towar ze spiżarki do koszyka   ·   Q przy sprzęcie — gotowanie   ·   K — rozwój";
+                case PlaceKind.Rynek:
+                    if (van) return null;
+                    return c.basket.Sum() > 0 ? $"F — sprzedaj z koszyka na straganie ({c.basket.Sum()} szt.)" : "Rynek: przywieź towar w koszyku roweru.";
+                case PlaceKind.Mleczarnia:
+                    if (!CareerSim.Allowed(p, "hala")) return "Hala mleczarni jest na sprzedaż — " + CareerSim.LockedText("hala");
+                    return null;
+            }
+            return null;
+        }
+
+        bool CareerAction(PlayerState p, Place place, WheeledVehicle v, ref Result r)
+        {
+            switch (place.Kind)
+            {
+                case PlaceKind.Gospodarstwo:
+                    if (v) return false;
+                    r = Bus.Send(new BuyMilkCan(Me, place.FarmId)); return true;
+                case PlaceKind.Dom:
+                    if (v && p.vehicle == VehicleKind.Cysterna) { r = Bus.Send(new UnloadTankerHome(Me)); return true; }
+                    if (v) { r = Bus.Send(new LoadVanHome(Me)); return true; }
+                    r = p.career.canister >= 1 ? Bus.Send(new PourMilk(Me)) : Bus.Send(new LoadBasket(Me)); return true;
+                case PlaceKind.Rynek:
+                    if (v) return false;
+                    r = Bus.Send(new SellBasket(Me)); return true;
+                case PlaceKind.Mleczarnia:
+                    if (CareerSim.Allowed(p, "hala")) return false;
+                    r = Result.Fail(CareerSim.LockedText("hala")); return true;
+            }
+            return false;
+        }
+
+        static void OnVehicleLocked(string msg) { if (Instance) Instance.Say(msg, true); }
+
+        /// <summary>Kariera: pojazdy są dostępne dopiero po zakupie.</summary>
+        string VehicleLock(WheeledVehicle v)
+        {
+            var p = Sim.S.players[Me];
+            if (!CareerSim.Active(p) || !v) return null;
+            var asm = v.GetComponent<VehicleAssembler>();
+            bool tanker = asm && asm.loadout.type == VehicleType.Cysterna;
+            string need = tanker ? "cysterna" : "dostawczak";
+            return CareerSim.Allowed(p, need) ? null : "To nie twój pojazd. " + CareerSim.LockedText(need);
         }
 
         /// <summary>Komenda bez dymka „w trakcie” (np. przytrzymanie Q z postępem w %) — dymek tylko przy błędzie albo końcu czynności.</summary>
@@ -197,6 +279,8 @@ namespace Mleczarka.Gameplay
                     if (e.Value > 0) Say(e.Id >= 0 ? $"Zebrano {e.Value} l mleka." : $"Rozładowano {e.Value} l do zbiornika.");
                     if (!string.IsNullOrEmpty(e.Text)) Say(e.Text, true);
                     break;
+                case "kitchenDone": Say(e.Text == "smietanka" || e.Text == "wirowanie" ? $"Śmietanka: +{e.Value:0.0} l w lodówce." : $"Gotowe: {e.Value} × {NameOf(e.Text)} — w spiżarce."); break;
+                case "kitchenStep": if (!string.IsNullOrEmpty(e.Text)) Say(e.Text); break;
                 case "batchDone": Say($"Gotowe: {e.Value} × {NameOf(e.Text)}. " + (Sim.S.players[Me].manualHandling ? "Odbierz produkty przy pakowarce." : "Towar jest w magazynie.")); break;
                 case "jobDone": Say($"Gotowe: {e.Value} × {NameOf(e.Text)}. Odbierz skrzynki przy pakowarce (Q) i zanieś do chłodni."); break;
                 case "breakdown": Say($"Awaria: {MachineName(e.Text)}! Podejdź i przytrzymaj Q, żeby naprawić.", true); break;

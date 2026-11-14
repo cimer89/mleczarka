@@ -125,6 +125,17 @@ namespace Mleczarka.UI
             if (!G) return (null, null);
             var p = G.Sim.S.players[GameController.Me]; var v = G.player ? G.player.CurrentVehicle : null;
             WorldPlace Find(PlaceKind k) => WorldPlace.All.Where(w => w && w.kind == k).OrderBy(w => (w.transform.position - pos).sqrMagnitude).FirstOrDefault();
+            if (!v && CareerSim.Active(p))
+            {
+                var c = p.career;
+                if (c.basket.Sum() > 0) return (Find(PlaceKind.Rynek), "Towar w koszyku — na rynek");
+                if (c.canister >= c.canisterCap * 0.6 || (c.canister >= 1 && c.fridge < 3)) return (Find(PlaceKind.Dom), "Mleko do lodówki — do domu");
+                if (c.pantry.Sum() > 0) return (Find(PlaceKind.Dom), "Gotowy towar w spiżarce — dom");
+                var farm = WorldPlace.All.Where(w => w && w.kind == PlaceKind.Gospodarstwo && w.farmId >= 0 && G.Sim.S.farms[w.farmId].stock >= 0.5)
+                    .OrderBy(w => (w.transform.position - pos).sqrMagnitude).FirstOrDefault();
+                if (c.fridge < 3 && farm) return (farm, $"Kup mleko: {farm.displayName}");
+                return (Find(PlaceKind.Dom), "Do domu — letnia kuchnia");
+            }
             if (v && p.vehicle == VehicleKind.Cysterna)
             {
                 if (p.tankerMilk >= p.tankerCap * 0.8f) return (Find(PlaceKind.Mleczarnia), "Cysterna pełna — do mleczarni");

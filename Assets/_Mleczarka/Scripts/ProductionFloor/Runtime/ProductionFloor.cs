@@ -162,6 +162,7 @@ namespace Mleczarka.ProductionFloor
         public void ProcessWorkInput()
         {
             if (!G || G.player.InputBlocked || PlantFloor.Busy) { workQueued = false; return; }
+            if (!CareerSim.Allowed(P, "hala")) { if (workQueued && Nearest()) Show(CareerSim.LockedText("hala"), true); workQueued = false; nearby = null; return; }
             nearby = Nearest();
             bool nearVan = !G.player.CurrentVehicle && Vector3.Distance(G.player.transform.position, van.transform.position) < 4.5f;
             if (workQueued)

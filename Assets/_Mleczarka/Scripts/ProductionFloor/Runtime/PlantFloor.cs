@@ -26,6 +26,8 @@ namespace Mleczarka.ProductionFloor
         public GameObject workerPrefab, cartonPrefab, cupPrefab, cratePrefab;
         public Material milkMat, curdMat, butterMat, cheeseMat, twarogMat, steamMat;
         public float aisleZ = -1f;
+        public Vector3[] doors;
+        public Vector2[] doorSpans;   // zakres X (lokalnie) działu, do którego prowadzą drzwi o tym samym numerze
 
         public static PlantFloor Instance { get; private set; }
         /// <summary>Gracz stoi przy stanowisku skrzydła — stara hala nie przejmuje wtedy klawisza Q.</summary>
@@ -69,7 +71,7 @@ namespace Mleczarka.ProductionFloor
             if (!G || !G.player) { enabled = false; return; }
             Simulation.Migrate(G.Sim.S);
             // stare partie z dawnej linii dokończą się same; nowe zaczyna się w skrzydle
-            if (P.plant == null || !P.plant.enabled) { PlantSim.Enable(P); G.Say("Nowe skrzydło maszyn działa. Partie zaczynasz przy panelu przyjęcia mleka (Q)."); }
+            if (P.plant == null || !P.plant.enabled) { PlantSim.Enable(P); if (CareerSim.Allowed(P, "skrzydlo")) G.Say("Nowe skrzydło maszyn działa. Partie zaczynasz przy panelu przyjęcia mleka (Q)."); }
             P.manualHandling = true;
             G.SimEvent += OnSimEvent;
             _fx = new GameObject("Skrzydło — animacja procesu").transform; _fx.SetParent(wingRoot ? wingRoot : transform, false);
@@ -102,7 +104,7 @@ namespace Mleczarka.ProductionFloor
         {
             if (!G.player || G.player.CurrentVehicle) return null;
             var pp = G.player.transform.position;
-            PlantMachineView best = null; float bd = 1.8f;
+            PlantMachineView best = null; float bd = 1.05f;   // tylko z pola obsługi — nie przez szybę działu
             foreach (var v in views)
             {
                 if (!v || !v.station) continue;
@@ -128,6 +130,7 @@ namespace Mleczarka.ProductionFloor
         {
             var kb = Keyboard.current;
             if (kb == null || _near == null || Blocked()) return;
+            if (!CareerSim.Allowed(P, "skrzydlo")) { if (kb.qKey.wasPressedThisFrame) Say(CareerSim.LockedText("skrzydlo")); return; }
             var v = _near;
             for (int i = 0; i < 8; i++)
                 if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame) _productIndex = i;
@@ -440,13 +443,37 @@ namespace Mleczarka.ProductionFloor
             return v.station.position + v.transform.right * side * (0.8f + 0.55f * (index / 2)) + (v.station.position - v.transform.position).normalized * 0.2f * (index / 2);
         }
 
+        /// <summary>Drzwi działu, w którym leży punkt (lokalnie w skrzydle); null, gdy punkt jest w korytarzu.</summary>
+        Vector3? Door(Vector3 local)
+        {
+            if (doors == null || doors.Length == 0) return null;
+            Vector3? best = null; float bd = float.MaxValue;
+            for (int i = 0; i < doors.Length; i++)
+            {
+                var d = wingRoot.InverseTransformPoint(doors[i]);
+                bool north = d.z > aisleZ;
+                if (north ? local.z <= d.z + 0.1f : local.z >= d.z - 0.1f) continue;
+                if (doorSpans != null && i < doorSpans.Length && (local.x < doorSpans[i].x - 0.05f || local.x > doorSpans[i].y + 0.05f)) continue;
+                float dist = Mathf.Abs(d.x - local.x);
+                if (dist < bd) { bd = dist; best = d; }
+            }
+            return best;
+        }
+
         Vector3[] Path(Vector3 a, Vector3 b)
         {
             if (!wingRoot) return new[] { a, b };
             Vector3 la = wingRoot.InverseTransformPoint(a), lb = wingRoot.InverseTransformPoint(b);
-            var p1 = wingRoot.TransformPoint(new Vector3(la.x, la.y, aisleZ));
-            var p2 = wingRoot.TransformPoint(new Vector3(lb.x, lb.y, aisleZ));
-            return new[] { a, p1, p2, b };
+            var pts = new List<Vector3> { a };
+            // z działu wychodzi się drzwiami do korytarza, do następnego działu wchodzi się jego drzwiami
+            Vector3? da = Door(la), db = Door(lb);
+            float xa = da.HasValue ? da.Value.x : la.x, xb = db.HasValue ? db.Value.x : lb.x;
+            if (da.HasValue) pts.Add(wingRoot.TransformPoint(new Vector3(da.Value.x, la.y, da.Value.z)));
+            pts.Add(wingRoot.TransformPoint(new Vector3(xa, la.y, aisleZ)));
+            pts.Add(wingRoot.TransformPoint(new Vector3(xb, lb.y, aisleZ)));
+            if (db.HasValue) pts.Add(wingRoot.TransformPoint(new Vector3(db.Value.x, lb.y, db.Value.z)));
+            pts.Add(b);
+            return pts.ToArray();
         }
 
         static Vector3 Along(Vector3[] path, float f)
@@ -532,6 +559,7 @@ namespace Mleczarka.ProductionFloor
         void OnGUI()
         {
             if (!G || _near == null || Blocked()) return;
+            if (!CareerSim.Allowed(P, "skrzydlo")) return;
             float scale = Mathf.Clamp(Screen.width / 1500f, 0.65f, 1.5f);
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
             if (_text == null)

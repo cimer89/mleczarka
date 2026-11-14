@@ -51,7 +51,7 @@ namespace Mleczarka.ProductionFloor.EditorTools
             // zaplecze rzędu północnego
             new Place { model = "ZbiornikSmietanki", kind = PlantMachineView.Kind.CreamTank, title = "Zbiornik śmietanki", x = -8.4f, z = 6.5f, face = Vector3.back },
             new Place { model = "CIP", kind = PlantMachineView.Kind.Cip, title = "Stacja mycia CIP", x = -4.5f, z = 6.8f, face = Vector3.back },
-            new Place { model = "Chlodnia", kind = PlantMachineView.Kind.ColdRoom, title = "Chłodnia", x = 9.6f, z = 7.5f, face = Vector3.left },
+            new Place { model = "Chlodnia", kind = PlantMachineView.Kind.ColdRoom, title = "Chłodnia", x = 9.3f, z = 8.0f, face = Vector3.back },
             new Place { model = "Laboratorium", kind = PlantMachineView.Kind.Lab, title = "Laboratorium", x = -11.2f, z = AisleZ, face = Vector3.right },
             // rząd południowy — masło, sery, rozlew, pakowanie
             new Place { model = "Maslnica", id = "maslnica", x = -9.3f, z = -6.5f, face = Vector3.forward },
@@ -146,13 +146,27 @@ namespace Mleczarka.ProductionFloor.EditorTools
             var cold = views.First(v => v.kind == PlantMachineView.Kind.ColdRoom);
             var coldInside = cold.interior ? cold.interior : cold.transform;
 
+            // działy produkcyjne, tabliczki maszyn, szyldy
+            var doors = WingDepartments.Build(root, shell, cream, navy, teal, glass, floor, steel);
+            for (int i = 0; i < Layout.Length; i++)
+            {
+                var p = Layout[i]; var v = views[i];
+                string sign = "Maszyna_" + (p.id ?? (p.kind == PlantMachineView.Kind.Intake ? "przyjecie" : p.kind == PlantMachineView.Kind.Lab ? "lab" : p.kind == PlantMachineView.Kind.Cip ? "cip" : p.kind == PlantMachineView.Kind.CreamTank ? "smietanka" : "chlodnia"));
+                var b = Bounds(v.gameObject);
+                var ext = root.InverseTransformVector(b.extents); float half = Mathf.Abs(Vector3.Dot(new Vector3(Mathf.Abs(ext.x), 0, Mathf.Abs(ext.z)), new Vector3(Mathf.Abs(p.face.x), 0, Mathf.Abs(p.face.z))));
+                WingDepartments.MachinePlate(root, sign, new Vector3(p.x, 0, p.z), p.face, half + 0.25f);
+            }
+            WingDepartments.MachinePlate(root, "Maszyna_silos", new Vector3(-10.2f, 0, 9.6f), Vector3.back, 1.6f);
+            WingDepartments.MachinePlate(root, "Maszyna_paleta", new Vector3(11.1f, 0, -6.5f), Vector3.forward, 0.7f, 2.4f);
+            WingDepartments.WingFacade(root, HalfZ);
+            WingDepartments.OldHall(hall, log);
             var vis = root.gameObject.AddComponent<FactoryShellVisibility>(); vis.shell = shell.ToArray(); vis.localSize = new Vector3(HalfX * 2, 10, HalfZ * 2);
 
             var oldFloor = InScene<ProductionFloor>(scene).FirstOrDefault();
             var go = new GameObject(FloorName); SceneManager.MoveGameObjectToScene(go, scene);
             var pf = go.AddComponent<PlantFloor>();
             pf.wingRoot = root; pf.views = views.ToArray(); pf.pipes = pipes.ToArray(); pf.beltA = beltA; pf.beltB = beltB;
-            pf.pallet = pallet; pf.coldInterior = coldInside; pf.aisleZ = AisleZ;
+            pf.pallet = pallet; pf.coldInterior = coldInside; pf.aisleZ = AisleZ; pf.doors = doors; pf.doorSpans = WingDepartments.Depts.Select(d => new Vector2(d.x0, d.x1)).ToArray();
             if (oldFloor) { pf.cartonPrefab = oldFloor.milkPrefab; pf.cupPrefab = oldFloor.yogurtPrefab; pf.cratePrefab = oldFloor.cratePrefab; }
             pf.milkMat = Mat("Mleko_w_rurze", new Color(0.97f, 0.97f, 0.94f), 0, 0.7f, new Color(0.35f, 0.35f, 0.34f));
             pf.butterMat = Mat("Maslo_kostka", new Color(0.98f, 0.88f, 0.45f), 0, 0.4f);
@@ -228,7 +242,6 @@ namespace Mleczarka.ProductionFloor.EditorTools
             }
             // oznaczenia: główny korytarz od przejścia z hali do laboratorium, strefy obsługi
             for (float x = -9.5f; x <= 11; x += 2) Box("Pas komunikacyjny", new Vector3(x, 0.015f, AisleZ), new Vector3(1.3f, 0.02f, 0.1f), yellow, false, false);
-            Label("SKRZYDŁO MASZYN · PEŁNY CIĄG", new Vector3(0, 4.6f, HalfZ - 0.25f), 0.09f, new Color(0.04f, 0.2f, 0.24f), Quaternion.identity);
         }
 
         /// <summary>Przejście 4 m w zachodniej ścianie hali: oryginalne bryły zostają (wyłączone), w ich miejsce segmenty z otworem.</summary>

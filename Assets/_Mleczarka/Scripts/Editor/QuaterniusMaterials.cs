@@ -111,6 +111,21 @@ namespace Mleczarka.EditorTools
                 new Spec { name = "Rzepak_Lodyga", color = new Color(0.40f, 0.60f, 0.22f), smoothness = 0.25f, twoSided = true },
                 new Spec { name = "Rzepak_Kwiat", color = new Color(1.0f, 0.88f, 0.10f), smoothness = 0.25f },
                 new Spec { name = "Ziemniak_Lisc", color = new Color(0.28f, 0.50f, 0.20f), smoothness = 0.25f },
+                // Kariera: letnia kuchnia, sprzęt domowy, rower (własne modele z Blendera)
+                new Spec { name = "Drewno_Deski", color = new Color(0.45f, 0.30f, 0.17f), smoothness = 0.15f },
+                new Spec { name = "Drewno_Ciemne", color = new Color(0.27f, 0.17f, 0.10f), smoothness = 0.15f },
+                new Spec { name = "Drewno_Jasne", color = new Color(0.70f, 0.54f, 0.35f), smoothness = 0.2f },
+                new Spec { name = "Emalia_Biala", color = new Color(0.92f, 0.92f, 0.89f), smoothness = 0.65f },
+                new Spec { name = "Emalia_Kremowa", color = new Color(0.93f, 0.87f, 0.72f), smoothness = 0.7f },
+                new Spec { name = "Zeliwo", color = new Color(0.13f, 0.13f, 0.14f), smoothness = 0.4f, metallic = 0.6f },
+                new Spec { name = "Lakier_Rower", color = new Color(0.14f, 0.45f, 0.30f), smoothness = 0.65f, metallic = 0.3f },
+                new Spec { name = "Plotno", color = new Color(0.93f, 0.92f, 0.86f), smoothness = 0.1f },
+                new Spec { name = "Szklo_Sloik", color = new Color(0.80f, 0.92f, 0.94f, 0.45f), mode = Mode.Transparent, smoothness = 0.95f },
+                new Spec { name = "Blacha_Dach", color = new Color(0.35f, 0.38f, 0.42f), smoothness = 0.5f, metallic = 0.6f },
+                new Spec { name = "Aluminium", color = new Color(0.80f, 0.82f, 0.84f), smoothness = 0.7f, metallic = 0.9f },
+                new Spec { name = "Mleko_Bialy", color = new Color(0.97f, 0.97f, 0.95f), smoothness = 0.5f },
+                new Spec { name = "Twarog_Bialy", color = new Color(0.96f, 0.95f, 0.90f), smoothness = 0.2f },
+                new Spec { name = "Maslo_Zolte", color = new Color(0.98f, 0.88f, 0.48f), smoothness = 0.45f },
                 // Maszyny mleczarni (własne modele z Blendera)
                 new Spec { name = "Stal_Nierdzewna", color = new Color(0.80f, 0.82f, 0.85f), smoothness = 0.72f, metallic = 0.85f },
                 new Spec { name = "Stal_Rama", color = new Color(0.30f, 0.36f, 0.44f), smoothness = 0.5f, metallic = 0.6f },
@@ -254,7 +269,7 @@ namespace Mleczarka.EditorTools
         static int RemapModels(Dictionary<string, Material> mats)
         {
             int count = 0;
-            var guids = AssetDatabase.FindAssets("t:Model", new[] { TP.TrimEnd('/'), Art + "Vehicles", Art + "World", Art + "Machines" });
+            var guids = AssetDatabase.FindAssets("t:Model", new[] { TP.TrimEnd('/'), Art + "Vehicles", Art + "World", Art + "Machines", Art + "Career" });
             // Faza 1: nazwy materiałów jak w pliku źródłowym (np. "MI_WoodTrim", "Leaves_NormalTree").
             try
             {

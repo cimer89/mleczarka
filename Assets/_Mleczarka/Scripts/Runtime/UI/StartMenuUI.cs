@@ -102,7 +102,7 @@ namespace Mleczarka.UI
         {
             if (!G) return "";
             var S = G.Sim.S; var p = S.players[GameController.Me]; var c = G.Sim.Clock();
-            string mode = S.mission.active ? (S.mission.over ? "misja zakończona" : "misja") : "tryb swobodny";
+            string mode = CareerSim.Active(p) ? "kariera" : S.mission.active ? (S.mission.over ? "misja zakończona" : "misja") : "tryb swobodny";
             return $"Zapis: dzień {c.day}, {c.text} · {Money.Zl(p.money)} zł · ★ {p.rep} · {mode}";
         }
 
@@ -127,6 +127,7 @@ namespace Mleczarka.UI
         void NewGameChoice()
         {
             var card = Shell("Nowa gra", "Zaczynasz od zera: pieniądze, umowy, mleczarnia i pojazdy wracają do stanu początkowego.");
+            Big(card, "Kariera: od kuchni do mleczarni", () => Confirm(GameMode.Kariera), new Color(0.85f, 0.55f, 0.15f), Color.white);
             Big(card, "Misja: pierwszy dzień mleczarni", () => Confirm(GameMode.Misja), Brand, Color.white);
             Big(card, "Tryb swobodny", () => Confirm(GameMode.Swobodna), Good, Color.white);
             Big(card, "Wstecz", Main, Chip, Ink);
@@ -154,6 +155,7 @@ namespace Mleczarka.UI
                 "W hali: Q — obsługa maszyny (przytrzymaj przy dłuższych krokach), C — mycie CIP, X — przegląd / naprawa",
                 "Przy przyjęciu mleka: 1–8 — produkt, − / + — wielkość partii, Q — start partii",
                 "TAB — zarządzanie mleczarnią · O — zamówienia · M — mapa · G — garaż przy pojeździe",
+                "Kariera: B — rower (przy rowerze), K — rozwój i zakupy, F — kup mleko / przelej do lodówki / sprzedaj na rynku",
                 "Escape — menu i pauza",
             };
             foreach (var r in rows) { var l = L(r, 16, Ink); l.style.whiteSpace = WhiteSpace.Normal; l.style.marginBottom = 6; card.Add(l); }

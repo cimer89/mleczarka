@@ -55,7 +55,12 @@ namespace Mleczarka.UI
             var kb = Keyboard.current;
             if (kb != null)
             {
-                if (kb.tabKey.wasPressedThisFrame) Toggle("dairy");
+                if (kb.tabKey.wasPressedThisFrame)
+                {
+                    var me = G.Sim.S.players[GameController.Me];
+                    if (CareerSim.Allowed(me, "hala")) Toggle("dairy");
+                    else G.Say("Zarządzanie mleczarnią będzie po zakupie hali. " + CareerSim.LockedText("hala") + " Rozwój: K.", true);
+                }
                 if (kb.oKey.wasPressedThisFrame) Toggle("orders");
                 if (_open != null && kb.escapeKey.wasPressedThisFrame) Close();
             }

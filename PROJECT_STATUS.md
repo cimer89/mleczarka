@@ -1,3 +1,18 @@
+# STAN NA 2026-11-14, 17:20 — działy, tabliczki, kariera „od kuchni” (Claude)
+
+**Działy produkcyjne (skrzydło maszyn):** 6 działów — 1 Przyjęcie i laboratorium, 2 Mleko płynne, 3 Fermentacja, 4 Masło i sery, 5 Rozlew i pakowanie, 6 Chłodnia. Przeszklone ścianki z drzwiami od korytarza, pełne ścianki między działami (górą rury), otwór w ściance na taśmę zbiorczą, kolor posadzki działu. Chłodnia obrócona drzwiami do korytarza. Obsługa maszyny tylko z pola obsługi (nie przez szybę). Pracownicy chodzą przez drzwi działów.
+
+**Tabliczki:** napisy to obrazki (Art/Signs, czcionka DejaVu) na płytach z ramą — tablice działów nad drzwiami, tabliczki maszyn na linkach nad stanowiskami, tabliczki stanowisk w starej hali zamiast unoszących się napisów (stare napisy wyłączone, nie usunięte), szyld „MLECZARNIA” na fasadzie, „SKRZYDŁO PRODUKCYJNE” na ścianie skrzydła.
+
+**Kariera „od kuchni do mleczarni” (nowy tryb, menu → Nowa gra):**
+- Start: 60 zł, rower z koszykiem, bańka 10 l, letnia kuchnia przy wsi (dom gracza, wybrany automatycznie wolny teren 140 m od rynku; trawa usunięta tylko spod szopy).
+- Pętla: F u gospodarza — mleko do bańki (na litry) → F w domu — do lodówki → Q przy sprzęcie: twaróg, mleko w butelkach, jogurt (kuchnia), zbieranie śmietanki (lodówka), śmietana i kefir (stół), masło (maselnica), wirówka ręczna, ser (prasa) → F przy domu — do koszyka → F na rynku — sprzedaż na straganie (rynek się nasyca, potem odbija).
+- Rozwój (K): maselnica, grzybek, duży garnek, przyczepka, wirówka ręczna, druga lodówka, prasa, stragan, dostawczak, cysterna, hala, skrzydło maszyn. Pojazdy, umowy, hala i skrzydło zablokowane do czasu zakupu (komunikat z ceną). Cysterna przed halą rozładowuje się do lodówek w domu, dostawczak ładuje się ze spiżarki.
+- Rower: B przy rowerze; postać siedzi (klip Driving_Loop), koła i korba się kręcą, bańka na bagażniku, słoiki w koszyku.
+- Modele z Blendera (Blender/Kariera_Kuchnia.blend → Art/Career): szopa, kuchnia węglowa z garnkiem, lodówka retro, stół, półka ze słoikami, maselnica, wirówka ręczna, prasa, bańka, rower.
+- Testy: kariera 33/33 (pętla, blokady, migracja), symulacja 34/34, hala 64/64. Test w grze (menu Kariera → 3, bez zapisu gracza): kupno mleka, twaróg, koszyk, rower, sprzedaż 2 szt. za 27,02 zł.
+- Zapisy w starych trybach bez zmian (kariera nieaktywna).
+
 # STAN NA 2026-11-14, 16:30 — noszenie skrzynek, wersja .exe (Claude)
 
 - Noszenie: warstwa „Noszenie” w kontrolerach rolnika i pracownika (maska: ręce, klip UAL2 Walk_Carry_Loop, menu „Produkcja → 13”). Skrzynka zmniejszona do ok. 45 × 30 cm, leży na dłoniach przed klatką piersiową. Sprawdzone zdjęciami z boku i z przodu (menu „Produkcja → 14”).

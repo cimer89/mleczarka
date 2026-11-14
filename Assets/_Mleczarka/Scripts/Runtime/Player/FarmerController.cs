@@ -122,17 +122,18 @@ namespace Mleczarka.Player
             Vector3 dir = Vector3.ClampMagnitude(fwd * input.y + right * input.x, 1f);
 
             float target = dir.sqrMagnitude < 0.01f ? 0f : (_sprint.IsPressed() ? sprintSpeed : Mathf.Lerp(walkSpeed, runSpeed, dir.magnitude));
+            if (OnBike) target = dir.sqrMagnitude < 0.01f ? 0f : (_sprint.IsPressed() ? bikeSprint : bikeSpeed * dir.magnitude);
             _speed = Mathf.MoveTowards(_speed, target, acceleration * Time.deltaTime);
 
             if (dir.sqrMagnitude > 0.01f)
             {
                 var want = Quaternion.LookRotation(dir, Vector3.up);
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnSpeed * Time.deltaTime);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnSpeed * (OnBike ? 0.35f : 1f) * Time.deltaTime);
             }
 
             bool grounded = _cc.isGrounded;
             if (grounded && _velocity.y < 0f) _velocity.y = -2f;
-            if (grounded && _jump.WasPressedThisFrame())
+            if (grounded && !OnBike && _jump.WasPressedThisFrame())
             {
                 _velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 if (_anim) _anim.SetTrigger(JumpId);
@@ -144,7 +145,7 @@ namespace Mleczarka.Player
 
             if (_anim)
             {
-                _anim.SetFloat(SpeedId, _speed, 0.1f, Time.deltaTime);
+                _anim.SetFloat(SpeedId, OnBike ? 0f : _speed, 0.1f, Time.deltaTime);
                 _anim.SetBool(GroundedId, _cc.isGrounded);
             }
         }
@@ -159,6 +160,32 @@ namespace Mleczarka.Player
             _vehicle.SetInput(input.y, input.x, _jump.IsPressed());
             transform.position = _vehicle.transform.position;
         }
+
+        /// <summary>Kariera: zwraca komunikat, gdy pojazdu nie wolno jeszcze używać (null = można).</summary>
+        public static System.Func<WheeledVehicle, string> CanEnter;
+        public static event System.Action<string> Locked;
+
+        // ---------- rower (kariera) ----------
+        public bool OnBike { get; private set; }
+        public float CurrentSpeed => _speed;
+        public float bikeSpeed = 6.5f, bikeSprint = 9f;
+        Transform _bike, _model; Vector3 _modelPos;
+        static readonly int BikeId = Animator.StringToHash("Bike");
+        bool _animHasBike;
+
+        /// <summary>Wsiada na rower (model roweru przypina się pod postacią) albo z niego zsiada.</summary>
+        public void SetBike(bool on, Transform bikeModel = null)
+        {
+            if (_vehicle) return;
+            if (bikeModel) _bike = bikeModel;
+            OnBike = on && _bike;
+            if (_bike) _bike.gameObject.SetActive(OnBike);
+            if (!_model && _anim) { _model = _anim.transform; _modelPos = _model.localPosition; }
+            if (_anim) _animHasBike = System.Array.Exists(_anim.parameters, p => p.nameHash == BikeId);
+            if (_anim && _animHasBike) _anim.SetBool(BikeId, OnBike);
+            if (_model) _model.localPosition = _modelPos + (OnBike ? Vector3.up * bikeSeatLift + Vector3.forward * bikeSeatForward : Vector3.zero);
+        }
+        public float bikeSeatLift = 0.42f, bikeSeatForward = 0.16f;
 
         /// <summary>Wsiądź do najbliższego pojazdu albo wysiądź (klawisz E, przycisk dotykowy, testy).</summary>
         public void EnterOrExit() => ToggleVehicle();
@@ -177,6 +204,7 @@ namespace Mleczarka.Player
                 return;
             }
 
+            if (OnBike) return;
             WheeledVehicle best = null;
             float bestD = enterDistance;
             foreach (var v in FindObjectsByType<WheeledVehicle>(FindObjectsSortMode.None))
@@ -185,6 +213,8 @@ namespace Mleczarka.Player
                 if (d < bestD) { best = v; bestD = d; }
             }
             if (!best) return;
+            var lockMsg = CanEnter?.Invoke(best);
+            if (!string.IsNullOrEmpty(lockMsg)) { Locked?.Invoke(lockMsg); return; }
             _vehicle = best;
             _vehicle.HasDriver = true;
             _cc.enabled = false;

@@ -114,6 +114,7 @@ namespace Mleczarka.ProductionFloor
         void Update()
         {
             if (!G || G.Sim == null || floor == null || P.plant == null) return;
+            if (!CareerSim.Allowed(P, "skrzydlo")) { foreach (var b in _beacons.Values) Destroy(b.root); _beacons.Clear(); _tasks.Clear(); return; }
             Collect();
             bool inside = G.player && floor.wingRoot && Vector3.Distance(G.player.transform.position, floor.wingRoot.position) < 45;
             var want = new Dictionary<PlantMachineView, Task>();
