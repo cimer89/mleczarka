@@ -1,0 +1,11 @@
+* text=auto
+*.cs text eol=crlf
+*.unity -text merge=unityyamlmerge
+*.prefab -text merge=unityyamlmerge
+*.asset -text
+*.mat -text
+*.meta -text
+*.fbx binary
+*.png binary
+*.blend binary
+*.zip binary

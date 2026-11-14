@@ -1,0 +1,24 @@
+# Unity — foldery odtwarzane automatycznie
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/Screenshots/
+/Backups/
+/Import/
+/Eksport_GitHub/
+*.csproj
+*.sln
+*.suo
+*.user
+*.pidb
+*.booproj
+*.blend1
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
