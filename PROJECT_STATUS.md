@@ -1,3 +1,9 @@
+# STAN NA 2026-11-14, 16:30 — noszenie skrzynek, wersja .exe (Claude)
+
+- Noszenie: warstwa „Noszenie” w kontrolerach rolnika i pracownika (maska: ręce, klip UAL2 Walk_Carry_Loop, menu „Produkcja → 13”). Skrzynka zmniejszona do ok. 45 × 30 cm, leży na dłoniach przed klatką piersiową. Sprawdzone zdjęciami z boku i z przodu (menu „Produkcja → 14”).
+- Zbudowana wersja Windows: `Builds/Windows/Mleczarka.exe` (821 MB, 14,5 min, 0 błędów). Folder Builds nie trafia do repozytorium.
+- Czeka na decyzję: podział skrzydła na działy („tak, działy”) i tryb „Kariera: od kuchni” („tak, kariera”).
+
 # STAN NA 2026-11-14, 13:20 — widok we wnętrzu hali (Claude)
 
 - `FactoryShellVisibility`: zamiast chowania wszystkich ścian i dachu po wejściu chowają się tylko bryły, które zasłaniają gracza przed kamerą (linia kamera → głowa, pierś, stopy). Reszta ścian, okna, dźwigary i dach zostają. Dotyczy hali Codexa i skrzydła maszyn. Sprawdzone w trybie gry.

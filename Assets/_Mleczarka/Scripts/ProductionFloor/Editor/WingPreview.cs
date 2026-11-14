@@ -30,6 +30,33 @@ namespace Mleczarka.ProductionFloor.EditorTools
             EditorApplication.update -= Tick; EditorApplication.update += Tick;
         }
 
+        [MenuItem("Mleczarka/Produkcja/14. Test noszenia skrzynki (Play)")]
+        static void CarryShot()
+        {
+            if (!Application.isPlaying) { Debug.LogWarning("[Mleczarka] Najpierw uruchom tryb gry."); return; }
+            var g = GameController.Instance; var p = g.Sim.S.players[GameController.Me]; var pf = PF;
+            g.SuspendSaving = true;
+            var menu = Object.FindFirstObjectByType<Mleczarka.UI.StartMenuUI>(); if (menu) menu.CloseMenu();
+            if (g.player.CurrentVehicle) g.player.EnterOrExit();
+            if (p.carried.Sum() == 0) p.carried[(int)Product.Uht] = 4;
+            g.player.transform.position = pf.wingRoot.TransformPoint(new Vector3(-1, 0.05f, pf.aisleZ));
+            g.player.transform.rotation = pf.wingRoot.rotation * Quaternion.Euler(0, 90, 0);
+            Directory.CreateDirectory(Dir); _t0 = EditorApplication.timeSinceStartup;
+            EditorApplication.update -= CarryTick; EditorApplication.update += CarryTick;
+        }
+
+        static void CarryTick()
+        {
+            if (!Application.isPlaying || EditorApplication.timeSinceStartup - _t0 < 1.5) return;
+            EditorApplication.update -= CarryTick;
+            var pl = GameController.Instance.player.transform;
+            _cam = new GameObject("Kamera testu noszenia").AddComponent<Camera>(); _cam.enabled = false; _cam.nearClipPlane = 0.05f;
+            Shot("noszenie_bok", pl.position + pl.right * 2.6f + Vector3.up * 1.4f, pl.position + Vector3.up * 1.1f, 45);
+            Shot("noszenie_przod", pl.position + pl.forward * 2.6f + pl.right * 0.8f + Vector3.up * 1.5f, pl.position + Vector3.up * 1.1f, 45);
+            Object.Destroy(_cam.gameObject);
+            Debug.Log("[Mleczarka] Test noszenia: zdjęcia w " + Dir);
+        }
+
         static PlantFloor PF => Object.FindFirstObjectByType<PlantFloor>();
 
         static void Tick()

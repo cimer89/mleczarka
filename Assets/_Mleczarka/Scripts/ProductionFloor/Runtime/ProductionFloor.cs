@@ -116,6 +116,49 @@ namespace Mleczarka.ProductionFloor
             ProcessWorkInput();
         }
 
+        Animator _anim; int _carryLayer = -2; float _carryW; bool _sized;
+        static Bounds Bounds(GameObject g)
+        {
+            var rs = g.GetComponentsInChildren<Renderer>(); if (rs.Length == 0) return new Bounds(g.transform.position, Vector3.one * 0.3f);
+            var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds); return b;
+        }
+
+        /// <summary>Skrzynka trzymana w dłoniach przed klatką piersiową (warstwa „Noszenie” = ręce z animacji Walk_Carry_Loop).</summary>
+        void LateUpdate()
+        {
+            if (!G || !G.player || !carriedVisual) return;
+            if (!_anim) { _anim = G.player.GetComponentInChildren<Animator>(); _carryLayer = -2; }
+            if (_anim && _carryLayer == -2) _carryLayer = _anim.runtimeAnimatorController ? _anim.GetLayerIndex("Noszenie") : -1;
+            bool carrying = carriedVisual.activeSelf;
+            _carryW = Mathf.MoveTowards(_carryW, carrying ? 1 : 0, Time.deltaTime * 5);
+            if (_anim && _carryLayer > 0) _anim.SetLayerWeight(_carryLayer, _carryW);
+            if (!carrying) return;
+            var t = G.player.transform; var fwd = t.forward;
+            Transform lh = _anim && _anim.isHuman ? _anim.GetBoneTransform(HumanBodyBones.LeftHand) : null;
+            Transform rh = _anim && _anim.isHuman ? _anim.GetBoneTransform(HumanBodyBones.RightHand) : null;
+            // skrzynka ma rozmiar, który da się nieść (ok. 45 × 30 cm), a jej spód leży na dłoniach
+            if (!_sized)
+            {
+                _sized = true;
+                carriedVisual.transform.rotation = Quaternion.identity;
+                var b0 = Bounds(carriedVisual);
+                float k = Mathf.Min(0.46f / Mathf.Max(0.01f, Mathf.Max(b0.size.x, b0.size.z)), 0.3f / Mathf.Max(0.01f, b0.size.y));
+                carriedVisual.transform.localScale *= k;
+            }
+            Vector3 palms = t.position + Vector3.up * 1.0f + fwd * 0.36f;
+            if (lh && rh && _carryLayer > 0 && _carryW > 0.9f)
+            {
+                var mid = (lh.position + rh.position) / 2;
+                float hh = Vector3.Dot(mid - t.position, Vector3.up), ff = Vector3.Dot(mid - t.position, fwd);
+                if (hh > 0.7f && hh < 1.4f && ff > 0.15f) palms = mid;
+            }
+            carriedVisual.transform.rotation = Quaternion.LookRotation(fwd, Vector3.up);
+            carriedVisual.transform.position = palms;
+            var bb = Bounds(carriedVisual);
+            var target = palms + Vector3.up * (0.03f + bb.extents.y) + fwd * 0.04f;
+            carriedVisual.transform.position += target - bb.center;
+        }
+
         public void ProcessWorkInput()
         {
             if (!G || G.player.InputBlocked || PlantFloor.Busy) { workQueued = false; return; }
