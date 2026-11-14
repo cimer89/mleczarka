@@ -1,0 +1,6 @@
+{
+  "name": "Mleczarka.ProductionFloor.Editor",
+  "references": ["Mleczarka.ProductionFloor", "Mleczarka.Runtime", "Mleczarka.Core", "Mleczarka.Vehicles.Model", "Unity.Cinemachine", "Unity.InputSystem"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

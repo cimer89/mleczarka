@@ -1,0 +1,5 @@
+{
+  "name": "Mleczarka.ProductionFloor",
+  "references": ["Mleczarka.Runtime", "Mleczarka.Core", "Mleczarka.Vehicles.Model", "Unity.InputSystem", "Unity.Cinemachine"],
+  "autoReferenced": true
+}

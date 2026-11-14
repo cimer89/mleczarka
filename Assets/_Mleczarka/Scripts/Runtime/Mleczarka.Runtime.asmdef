@@ -1,0 +1,19 @@
+{
+    "name": "Mleczarka.Runtime",
+    "rootNamespace": "Mleczarka",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.Cinemachine",
+        "Mleczarka.Vehicles.Model",
+        "Mleczarka.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

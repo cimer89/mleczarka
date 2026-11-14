@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/_Mleczarka/Scenes/Gmina_Podlasie.unity
+    guid: 23f93cf488f6dd041898f01ac89800c4
+  - enabled: 1
+    path: Assets/_Mleczarka/Scenes/Swiat_Gmina.unity
+    guid: 6be700395b07ed34583df40ff930b6ed
+  - enabled: 1
+    path: Assets/_Mleczarka/Scenes/Demo_Gospodarstwo.unity
+    guid: 5f2891cf0a20c5f4aa81dc18c0d47080
+  - enabled: 1
+    path: Assets/Scenes/SampleScene.unity
+    guid: 99c9720ab356a0642a771bea13969a05
+  m_configObjects:
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_UseUCBPForAssetBundles: 0

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3091ac6e63125ee4095d1e35c829f886, type: 3}
+  m_Name: Podwozie_Cysterna_Wiejska
+  m_EditorClassIdentifier: Mleczarka.Runtime::Mleczarka.Vehicles.VehicleDefinition
+  id: Cysterna_Wiejska
+  displayName: Cysterna wiejska
+  type: 0
+  chassisPrefab: {fileID: 919132149155446097, guid: 3d06fc6b96405e44eb00a1a91753ee08, type: 3}
+  baseStats:
+    massKg: 3600
+    motorTorque: 2400
+    maxSpeedKmh: 62
+    grip: 1
+    capacityL: 0
+  defaultParts:
+  - {fileID: 11400000, guid: d826ea1ab04ca784d9dbb8a2339ba9f2, type: 2}
+  - {fileID: 11400000, guid: 15056c6d43f610747b9db6a44240bb10, type: 2}
+  - {fileID: 11400000, guid: a86d34cba9b920c4cadcded069bf9fef, type: 2}
+  - {fileID: 11400000, guid: ccb2dd11b774cdb48b09dc4115692ac3, type: 2}
+  - {fileID: 11400000, guid: 6f36fcc457bb760439c4a2eb531d2889, type: 2}
+  - {fileID: 11400000, guid: 0326ddcb403cb914ba0cbfd197aa8992, type: 2}

@@ -1,0 +1,14 @@
+{
+    "name": "Mleczarka.Vehicles.Model",
+    "rootNamespace": "Mleczarka.Vehicles.Model",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

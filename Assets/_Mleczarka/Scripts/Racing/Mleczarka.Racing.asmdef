@@ -1,0 +1,6 @@
+{
+  "name": "Mleczarka.Racing",
+  "rootNamespace": "Mleczarka.Racing",
+  "references": ["Mleczarka.Runtime", "Unity.InputSystem"],
+  "autoReferenced": true
+}

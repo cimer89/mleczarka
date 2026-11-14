@@ -1,0 +1,6 @@
+{
+  "name": "Mleczarka.Racing.Editor",
+  "references": ["Mleczarka.Racing", "Mleczarka.Runtime", "Mleczarka.Vehicles.Model"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}
