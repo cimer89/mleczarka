@@ -33,6 +33,12 @@ namespace Mleczarka.EditorTools
                 mi.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
                 mi.importAnimation = anims;
             }
+            else if (Is(assetPath, "/FarmAnimals/"))
+            {
+                // zwierzęta (krowa): szkielet Generic z własnymi animacjami (Idle, WalkSlow…)
+                mi.animationType = ModelImporterAnimationType.Generic;
+                mi.importAnimation = true;
+            }
             else if (skinnedPart)
             {
                 mi.animationType = ModelImporterAnimationType.Generic;

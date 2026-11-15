@@ -61,14 +61,14 @@ namespace Mleczarka.ProductionFloor
                     npc.name = "Odbiorca: " + r.name;
                     _receiverNpcs.Add((r, npc));
                 }
-            GameController.HintHook = Hint;
-            GameController.ActionHook = Action;
+            GameController.HintHook += Hint;
+            GameController.ActionHook += Action;
         }
 
         void OnDestroy()
         {
-            if (GameController.HintHook == (System.Func<string>)Hint) GameController.HintHook = null;
-            if (GameController.ActionHook == (System.Func<Result?>)Action) GameController.ActionHook = null;
+            GameController.HintHook -= Hint;
+            GameController.ActionHook -= Action;
         }
 
         // ---------- postacie ----------
@@ -302,28 +302,28 @@ namespace Mleczarka.ProductionFloor
                 var rec = NearReceiver();
                 if (rec != null)
                 {
-                    if (p.carriedOrder >= 0) return G.Send(new HandOverOrder(GameController.Me));
+                    if (p.carriedOrder >= 0) return G.Run(new HandOverOrder(GameController.Me));
                     return Result.Fail(OrderFor(rec.client) != null ? "Najpierw wyjmij skrzynkę z dostawczaka (F przy dostawczaku)." : "Nie masz zamówienia od tej placówki.");
                 }
                 if (NearVan())
                 {
-                    if (p.carriedOrder >= 0) return G.Send(new ReturnOrderToVan(GameController.Me));
+                    if (p.carriedOrder >= 0) return G.Run(new ReturnOrderToVan(GameController.Me));
                     var o = OrderFor(place.FarmId);
-                    if (o != null) return G.Send(new CarryOrder(GameController.Me, o.id));
+                    if (o != null) return G.Run(new CarryOrder(GameController.Me, o.id));
                 }
             }
             if (!CareerSim.Active(p)) return null;
             var cust = NearCustomer();
             if (cust != null)
             {
-                var r = G.Send(new HandSell(GameController.Me, cust.want));
+                var r = G.Run(new HandSell(GameController.Me, cust.want));
                 if (r.Ok) Leave(cust);
                 return r;
             }
             if (NearBike && place.Kind != PlaceKind.Dom)
             {
-                if (p.career.hand >= 0) return G.Send(new ReturnHand(GameController.Me));
-                if (p.career.basket.Sum() > 0) return G.Send(new TakeFromBasket(GameController.Me, BestFromBasket()));
+                if (p.career.hand >= 0) return G.Run(new ReturnHand(GameController.Me));
+                if (p.career.basket.Sum() > 0) return G.Run(new TakeFromBasket(GameController.Me, BestFromBasket()));
             }
             return null;
         }

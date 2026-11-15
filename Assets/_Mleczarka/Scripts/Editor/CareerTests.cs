@@ -18,7 +18,7 @@ namespace Mleczarka.EditorTools
         public static void Run()
         {
             _log = new StringBuilder(); _ok = _bad = 0;
-            try { Loop(); Locks(); Migration(); HandSale(); Institutions(); }
+            try { Loop(); Locks(); Migration(); HandSale(); Institutions(); Cows(); }
             catch (System.Exception e) { _bad++; _log.AppendLine("WYJĄTEK " + e); }
             Directory.CreateDirectory("Screenshots"); File.WriteAllText("Screenshots/testy_kariery.txt", _log.ToString());
             Debug.Log($"[Mleczarka] Testy kariery: {_ok} OK, {_bad} błędów.");
@@ -92,6 +92,33 @@ namespace Mleczarka.EditorTools
             Check(CareerSim.Allowed(p, "skrzydlo"), "pełna ścieżka do skrzydła maszyn");
             S.t = 1; for (int i = 0; i < 2000; i++) sim.Tick(0.25);
             Check(S.orders.Count > 0, "z dostawczakiem pojawiają się zamówienia");
+        }
+
+        static void Cows()
+        {
+            _log.AppendLine("Krowy:");
+            var w = new World(); var S = Simulation.NewGame(GameMode.Kariera, 3); var sim = new Simulation(S, w); var p = S.players[0]; var c = p.career;
+            Check(GameData.Farms.Length >= 20, $"więcej miejsc skupu: {GameData.Farms.Length} gospodarstw");
+            bool ok = true;
+            for (int i = 0; i < S.farms.Count; i++) { var f = S.farms[i]; int k = CareerSim.Cows(i); if (k < 1 || k > 3 || System.Math.Abs(f.max * CareerData.LitersPerFarmUnit - k * 20) > 1e-6) ok = false; }
+            Check(ok, "gospodarstwo: zapas = krowy × 20 l (1–3 krowy)");
+            var f0 = S.farms[0]; f0.stock = 0;
+            for (int i = 0; i < 4 * 24 * 60; i++) sim.Tick(0.25);   // doba gry
+            Check(System.Math.Abs(f0.stock * CareerData.LitersPerFarmUnit - CareerSim.Cows(0) * 20) < 0.6, $"po dobie gospodarstwo ma {f0.stock * CareerData.LitersPerFarmUnit:0.0} l (krowy {CareerSim.Cows(0)} × 20 l)");
+            Check(!new MilkOwnCow(0).Execute(sim).Ok, "własną krowę doi się przy domu");
+            w.place = new Place(PlaceKind.Dom);
+            double money = p.money; c.fridge = 0; c.canister = 0; c.cowMilk = 20;
+            var r = new MilkOwnCow(0).Execute(sim);
+            Check(r.Ok && c.fridge == 20 && c.canister == 0 && p.money == money, "wydojenie 20 l do lodówki za darmo: " + r.Msg);
+            Check(!new MilkOwnCow(0).Execute(sim).Ok, "wydojona krowa nie daje od razu więcej");
+            for (int i = 0; i < 4 * 60 * 12; i++) sim.Tick(0.25);   // pół doby
+            Check(System.Math.Abs(c.cowMilk - 10) < 0.3, $"po pół doby krowa ma {c.cowMilk:0.0} l");
+            c.fridge = c.fridgeCap; r = new MilkOwnCow(0).Execute(sim);
+            Check(r.Ok && c.canister == 10 && c.fridge == c.fridgeCap, "pełna lodówka — mleko do bańki: " + r.Msg);
+            // stary zapis: gospodarstwa z dawnym zapasem dostają limit z krów
+            var S2 = Simulation.NewGame(GameMode.Kariera, 5); S2.farms[1].max = 20; S2.farms[1].stock = 18; S2.farms.RemoveAt(S2.farms.Count - 1);
+            Simulation.Migrate(S2);
+            Check(S2.farms.Count == GameData.Farms.Length && S2.farms[1].stock * CareerData.LitersPerFarmUnit <= CareerSim.Cows(1) * 20 + 1e-6, "migracja: nowe gospodarstwa dodane, zapas przycięty do krów");
         }
 
         static void HandSale()

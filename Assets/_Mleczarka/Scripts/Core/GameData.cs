@@ -27,6 +27,8 @@ namespace Mleczarka.Core
     public sealed class FarmDef
     {
         public string Name; public double Stock, Max, Rate, BasePrice; public int Owner; // -1 = wolne
+        /// <summary>Krowy przy gospodarstwie (kariera: każda daje 20 l mleka na dobę).</summary>
+        public int Cows = 1;
     }
 
     /// <summary>Dane gry z prototypu (data.js): produkty, stanowiska, receptury, gospodarstwa, klienci, ciekawostki.</summary>
@@ -88,19 +90,28 @@ namespace Mleczarka.Core
 
         public static readonly FarmDef[] Farms =
         {
-            new FarmDef { Name = "Kowalscy", Stock = 14, Max = 20, Rate = 0.8, BasePrice = 1.2, Owner = 0 },
-            new FarmDef { Name = "Nowakowie", Stock = 10, Max = 20, Rate = 0.7, BasePrice = 1.3, Owner = 0 },
-            new FarmDef { Name = "Wiśniewscy", Stock = 16, Max = 24, Rate = 0.9, BasePrice = 1.4, Owner = -1 },
-            new FarmDef { Name = "Zielińscy", Stock = 18, Max = 24, Rate = 0.9, BasePrice = 1.5, Owner = -1 },
-            new FarmDef { Name = "Wójcikowie", Stock = 12, Max = 20, Rate = 0.8, BasePrice = 1.3, Owner = -1 },
-            new FarmDef { Name = "Kamińscy", Stock = 15, Max = 22, Rate = 0.9, BasePrice = 1.2, Owner = 1 },
+            new FarmDef { Name = "Kowalscy", Stock = 14, Max = 20, Rate = 0.8, BasePrice = 1.2, Cows = 2, Owner = 0 },
+            new FarmDef { Name = "Nowakowie", Stock = 10, Max = 20, Rate = 0.7, BasePrice = 1.3, Cows = 1, Owner = 0 },
+            new FarmDef { Name = "Wiśniewscy", Stock = 16, Max = 24, Rate = 0.9, BasePrice = 1.4, Cows = 3, Owner = -1 },
+            new FarmDef { Name = "Zielińscy", Stock = 18, Max = 24, Rate = 0.9, BasePrice = 1.5, Cows = 2, Owner = -1 },
+            new FarmDef { Name = "Wójcikowie", Stock = 12, Max = 20, Rate = 0.8, BasePrice = 1.3, Cows = 1, Owner = -1 },
+            new FarmDef { Name = "Kamińscy", Stock = 15, Max = 22, Rate = 0.9, BasePrice = 1.2, Cows = 2, Owner = 1 },
             // duża mapa (gmina na wzór Podlasia): kolejne gospodarstwa we wsiach i koloniach
-            new FarmDef { Name = "Sawiccy", Stock = 12, Max = 22, Rate = 0.8, BasePrice = 1.3, Owner = -1 },
-            new FarmDef { Name = "Romanowscy", Stock = 16, Max = 26, Rate = 1.0, BasePrice = 1.4, Owner = -1 },
-            new FarmDef { Name = "Kirylukowie", Stock = 14, Max = 24, Rate = 0.9, BasePrice = 1.35, Owner = -1 },
-            new FarmDef { Name = "Łapińscy", Stock = 18, Max = 28, Rate = 1.1, BasePrice = 1.5, Owner = -1 },
-            new FarmDef { Name = "Ostrowscy", Stock = 20, Max = 30, Rate = 1.2, BasePrice = 1.6, Owner = -1 },
-            new FarmDef { Name = "Jaroszewiczowie", Stock = 15, Max = 24, Rate = 0.9, BasePrice = 1.3, Owner = 1 },
+            new FarmDef { Name = "Sawiccy", Stock = 12, Max = 22, Rate = 0.8, BasePrice = 1.3, Cows = 1, Owner = -1 },
+            new FarmDef { Name = "Romanowscy", Stock = 16, Max = 26, Rate = 1.0, BasePrice = 1.4, Cows = 3, Owner = -1 },
+            new FarmDef { Name = "Kirylukowie", Stock = 14, Max = 24, Rate = 0.9, BasePrice = 1.35, Cows = 2, Owner = -1 },
+            new FarmDef { Name = "Łapińscy", Stock = 18, Max = 28, Rate = 1.1, BasePrice = 1.5, Cows = 2, Owner = -1 },
+            new FarmDef { Name = "Ostrowscy", Stock = 20, Max = 30, Rate = 1.2, BasePrice = 1.6, Cows = 3, Owner = -1 },
+            new FarmDef { Name = "Jaroszewiczowie", Stock = 15, Max = 24, Rate = 0.9, BasePrice = 1.3, Cows = 1, Owner = 1 },
+            // więcej miejsc skupu mleka: małe gospodarstwa z 1–2 krowami w kolejnych wsiach
+            new FarmDef { Name = "Bielscy", Stock = 10, Max = 18, Rate = 0.7, BasePrice = 1.25, Cows = 1, Owner = -1 },
+            new FarmDef { Name = "Maciejukowie", Stock = 12, Max = 20, Rate = 0.8, BasePrice = 1.3, Cows = 2, Owner = -1 },
+            new FarmDef { Name = "Kalinowscy", Stock = 10, Max = 18, Rate = 0.7, BasePrice = 1.2, Cows = 1, Owner = -1 },
+            new FarmDef { Name = "Wasilewscy", Stock = 14, Max = 22, Rate = 0.9, BasePrice = 1.35, Cows = 2, Owner = -1 },
+            new FarmDef { Name = "Ołdakowie", Stock = 10, Max = 18, Rate = 0.7, BasePrice = 1.25, Cows = 1, Owner = -1 },
+            new FarmDef { Name = "Jankowscy", Stock = 12, Max = 20, Rate = 0.8, BasePrice = 1.3, Cows = 2, Owner = -1 },
+            new FarmDef { Name = "Szymańscy", Stock = 10, Max = 18, Rate = 0.7, BasePrice = 1.2, Cows = 1, Owner = -1 },
+            new FarmDef { Name = "Dąbrowscy", Stock = 14, Max = 22, Rate = 0.9, BasePrice = 1.4, Cows = 2, Owner = -1 },
         };
 
         public static readonly (string name, string icon)[] Clients =
@@ -112,7 +123,7 @@ namespace Mleczarka.Core
 
         public static readonly Dictionary<string, string> Facts = new Dictionary<string, string>
         {
-            ["cow"] = "Krowa daje dziennie około 25 litrów mleka. Zwykle doi się ją dwa razy dziennie.",
+            ["cow"] = "Krowa w małym gospodarstwie daje około 20 litrów mleka na dobę. Zwykle doi się ją dwa razy dziennie.",
             ["cold"] = "Zaraz po dojeniu mleko schładza się do ok. 4°C. W zimnie bakterie prawie się nie mnożą.",
             ["tanker"] = "Cysterna działa jak wielki termos: mleko zostaje zimne w drodze do mleczarni.",
             ["uht"] = "Mleko UHT grzeje się do ok. 135–140°C przez 2–4 sekundy i trafia do sterylnych kartonów. Zamknięte może stać miesiące bez lodówki.",

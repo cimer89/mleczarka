@@ -56,6 +56,8 @@ namespace Mleczarka.Core
                 var f = GameData.Farms[i];
                 s.farms.Add(new FarmState { id = i, name = f.Name, stock = f.Stock, max = f.Max, rate = f.Rate, basePrice = f.BasePrice, price = f.BasePrice, owner = f.Owner });
             }
+            // kariera: mleko gospodarstw z liczby krów (stare zapisy miały 200–300 l na dobę)
+            if (s.players.Count > 0 && CareerSim.Active(s.players[0])) CareerSim.ApplyCows(s, false);
         }
 
         static int[] Grow(int[] a)

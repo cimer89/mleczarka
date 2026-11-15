@@ -137,12 +137,15 @@ namespace Mleczarka.Gameplay
         // ---------- przycisk akcji ----------
 
         /// <summary>Akcje zależne od tego, co jest tuż obok (klient na rynku, odbiorca w placówce, koszyk roweru) — mają pierwszeństwo przed akcją miejsca.</summary>
+        /// <summary>Kilka źródeł naraz (sprzedaż z ręki, własna krowa): liczy się pierwsze, które coś zwróci.</summary>
         public static System.Func<string> HintHook;
         public static System.Func<Result?> ActionHook;
+        static string FirstHint() { if (HintHook == null) return null; foreach (System.Func<string> f in HintHook.GetInvocationList()) { var h = f(); if (h != null) return h; } return null; }
+        static Result? FirstAction() { if (ActionHook == null) return null; foreach (System.Func<Result?> f in ActionHook.GetInvocationList()) { var r = f(); if (r.HasValue) return r; } return null; }
 
         public string ContextHint()
         {
-            var hook = HintHook?.Invoke(); if (hook != null) return hook;
+            var hook = FirstHint(); if (hook != null) return hook;
             var p = Sim.S.players[Me]; var place = PlaceOf(Me); var v = player ? player.CurrentVehicle : null;
             bool tanker = v && p.vehicle == VehicleKind.Cysterna, van = v && p.vehicle == VehicleKind.Dostawczak;
             if (CareerSim.Active(p))
@@ -169,7 +172,7 @@ namespace Mleczarka.Gameplay
 
         public void DoContextAction()
         {
-            var hooked = ActionHook?.Invoke();
+            var hooked = FirstAction();
             if (hooked.HasValue) { if (!string.IsNullOrEmpty(hooked.Value.Msg)) Say(hooked.Value.Msg, !hooked.Value.Ok); return; }
             var p = Sim.S.players[Me]; var place = PlaceOf(Me); var v = player ? player.CurrentVehicle : null;
             Result r = Result.Fail("Tu nie ma nic do zrobienia.");
@@ -211,7 +214,8 @@ namespace Mleczarka.Gameplay
                     if (v) return null;
                     var f = Sim.S.farms[place.FarmId];
                     double price = Money.M2(f.price * CareerData.MilkPriceFactor);
-                    return $"F — kup mleko do bańki ({c.canister:0}/{c.canisterCap:0} l, {Money.Zl(price)} zł/l, mają {Mathf.FloorToInt((float)(f.stock * CareerData.LitersPerFarmUnit))} l)";
+                    int cows = CareerSim.Cows(place.FarmId);
+                    return $"F — kup mleko do bańki ({c.canister:0}/{c.canisterCap:0} l, {Money.Zl(price)} zł/l, mają {Mathf.FloorToInt((float)(f.stock * CareerData.LitersPerFarmUnit))} l · {f.name}: {cows} {(cows == 1 ? "krowa" : "krowy")}, {cows * CareerData.LitersPerCow:0} l na dobę)";
                 case PlaceKind.Dom:
                     if (tanker) return "F — rozładuj mleko do lodówek";
                     if (van) return "F — załaduj towar ze spiżarki";
@@ -268,6 +272,9 @@ namespace Mleczarka.Gameplay
             if (!string.IsNullOrEmpty(r.Msg) && (!r.Ok || !r.Msg.Contains("%"))) Say(r.Msg, !r.Ok);
             return r;
         }
+
+        /// <summary>Komenda bez dymka — dla akcji, które zwracają wynik do DoContextAction (on pokazuje komunikat raz).</summary>
+        public Result Run(ICommand cmd) => Bus.Send(cmd);
 
         public Result Send(ICommand cmd)
         {

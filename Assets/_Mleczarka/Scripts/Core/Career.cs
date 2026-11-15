@@ -28,6 +28,7 @@ namespace Mleczarka.Core
         public int hand = -1;                          // produkt trzymany w dłoniach (sprzedaż z ręki klientowi), -1 = nic
         public double sold;                            // zarobek ze straganu (statystyka)
         public int unitsSold;
+        public double cowMilk = 20;                    // mleko od własnej krowy na działce (darmowe, do 20 l na dobę)
     }
 
     [Serializable]
@@ -57,6 +58,8 @@ namespace Mleczarka.Core
         public const double MilkPriceFactor = 1.6;       // gospodarz sprzedaje na litry drożej niż w umowie
         public const double LitersPerFarmUnit = 10;      // 1 „litr umowny” zapasu gospodarstwa = 10 l w bańce
         public const int SmallPot = 2, BigPot = 6;
+        public const double LitersPerCow = 20;           // krowa daje 20 l mleka na dobę
+        public const double OwnCowMax = 20;              // własna krowa: tyle mleka czeka najwyżej do wydojenia
 
         // ceny na straganie (domowe produkty)
         public static double Price(Product p)
@@ -146,6 +149,19 @@ namespace Mleczarka.Core
             if (c.owned == null) c.owned = new List<string>();
             if (c.jobs == null) c.jobs = new List<KitchenJob>();
         }
+        /// <summary>Kariera: gospodarstwo daje tyle mleka, ile mają krowy (krowy × 20 l na dobę), i trzyma najwyżej zapas z jednej doby.</summary>
+        public static void ApplyCows(GameState S, bool fill)
+        {
+            for (int i = 0; i < S.farms.Count && i < GameData.Farms.Length; i++)
+            {
+                var f = S.farms[i]; int cows = Math.Max(1, GameData.Farms[i].Cows);
+                f.max = cows * CareerData.LitersPerCow / CareerData.LitersPerFarmUnit;
+                f.rate = f.max / (24.0 * GameConfig.FarmRegenMultiplier);
+                f.stock = fill ? f.max : Math.Min(f.stock, f.max);
+            }
+        }
+        public static int Cows(int farm) => farm >= 0 && farm < GameData.Farms.Length ? Math.Max(1, GameData.Farms[farm].Cows) : 0;
+
         static int[] Grow(int[] a) { var n = new int[GameData.ProductCount]; if (a != null) Array.Copy(a, n, Math.Min(a.Length, n.Length)); return n; }
 
         public static void Start(GameState S)
@@ -153,6 +169,7 @@ namespace Mleczarka.Core
             var p = S.players[0]; Ensure(p);
             p.career.active = true;
             p.career.owned.AddRange(CareerData.StartItems);
+            ApplyCows(S, true);
             p.money = CareerData.StartMoney;
             p.workers.Clear(); p.tankMilk = 0;
             p.plant.workersOff = true;
@@ -189,6 +206,26 @@ namespace Mleczarka.Core
             double cost = Money.M2(liters * price);
             p.money = Money.M2(p.money - cost); f.stock -= liters / CareerData.LitersPerFarmUnit; c.canister += liters;
             return Result.Success($"Kupiono {liters:0} l mleka od: {f.name} za {Money.Zl(cost)} zł.");
+        }
+
+        /// <summary>Własna krowa na działce przy domu: mleko za darmo — najpierw do lodówki, resztę do bańki.</summary>
+        public static Result MilkOwnCow(Simulation sim, int pid)
+        {
+            var p = sim.S.players[pid]; var c = p.career;
+            if (!Active(p)) return Result.Fail("Tylko w karierze.");
+            if (!sim.IsAtPlace(pid, PlaceKind.Dom)) return Result.Fail("Twoja krowa pasie się na działce przy domu.");
+            double avail = Math.Floor(c.cowMilk + 0.01);
+            if (avail < 1)
+            {
+                double h = (1 - c.cowMilk) / CareerData.LitersPerCow * 24;
+                return Result.Fail($"Krowa jest wydojona. Następny litr za ok. {Math.Max(1, Math.Ceiling(h)):0} godz.");
+            }
+            double toFridge = Math.Min(avail, Math.Floor(c.fridgeCap - c.fridge));
+            double toCan = Math.Min(avail - toFridge, Math.Floor(c.canisterCap - c.canister));
+            if (toFridge + toCan < 1) return Result.Fail("Lodówka i bańka są pełne — najpierw zrób coś z mleka.");
+            c.fridge += toFridge; c.canister += toCan; c.cowMilk = Math.Max(0, c.cowMilk - toFridge - toCan);
+            string where = toCan > 0 ? $"{toFridge:0} l do lodówki, {toCan:0} l do bańki" : $"do lodówki ({c.fridge:0}/{c.fridgeCap:0} l)";
+            return Result.Success($"Wydojono {toFridge + toCan:0} l od własnej krowy — za darmo, {where}.");
         }
 
         public static Result PourToFridge(Simulation sim, int pid)
@@ -397,6 +434,7 @@ namespace Mleczarka.Core
                     sim.EmitEvent("kitchenStep", p.id, j.id, 0, r.Msg);
                 }
             }
+            c.cowMilk = Math.Min(CareerData.OwnCowMax, c.cowMilk + CareerData.LitersPerCow * dt / GameConfig.DaySeconds);
             double rec = (c.owned.Contains("stragan") ? 0.09 : 0.05) * dt / (GameConfig.DaySeconds / 24);
             for (int i = 0; i < c.demand.Length; i++) c.demand[i] = Math.Min(1, c.demand[i] + rec);
         }
@@ -404,6 +442,7 @@ namespace Mleczarka.Core
 
     // ---------------- komendy kariery ----------------
     public sealed class BuyMilkCan : Cmd { public readonly int Farm; public BuyMilkCan(int pid, int f) : base(pid) { Farm = f; } public override Result Execute(Simulation s) => CareerSim.BuyMilk(s, PlayerId, Farm); }
+    public sealed class MilkOwnCow : Cmd { public MilkOwnCow(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.MilkOwnCow(s, PlayerId); }
     public sealed class PourMilk : Cmd { public PourMilk(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.PourToFridge(s, PlayerId); }
     public sealed class StartKitchen : Cmd { public readonly string Recipe; public readonly int Qty; public StartKitchen(int pid, string r, int q) : base(pid) { Recipe = r; Qty = q; } public override Result Execute(Simulation s) => CareerSim.StartJob(s, PlayerId, Recipe, Qty); }
     public sealed class KitchenAct : Cmd { public readonly string Station; public KitchenAct(int pid, string st) : base(pid) { Station = st; } public override Result Execute(Simulation s) => CareerSim.Act(s, PlayerId, Station); }
