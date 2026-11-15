@@ -33,6 +33,7 @@ Zapis jest w folderze użytkownika Windows, nie w folderze gry:
 - **E** — wsiądź / wysiądź, **R** — postaw pojazd na koła.
 - **F** — akcja w miejscu (kup mleko, przelej, rozładuj, sprzedaj), **Q** (przytrzymaj) — praca przy sprzęcie lub maszynie.
 - **TAB** — zarządzanie mleczarnią, **O** — zamówienia, **M** — mapa, **G** — garaż.
+- **Szybki transport:** otwórz mapę (**M**), kliknij miejsce i **Jedź**. Czas gry przeskoczy o tyle, ile trwałaby podróż: pieszo najdłużej, rowerem krócej, pojazdem najkrócej.
 - Kariera: **B** — rower, **K** — rozwój i zakupy, **1–9** — produkt, **− / +** — wielkość partii.
 - **Escape** — menu i pauza (tam też pełna lista sterowania).
 
