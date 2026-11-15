@@ -29,6 +29,16 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: Plastik_Czarny
     second: {fileID: 2100000, guid: 3630596d0d8ae2a4db14240919d7cd6a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Wiklina
+    second: {fileID: 2100000, guid: bb97519b9cce3924dbc95bbd40256528, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Wiklina_Ciemna
+    second: {fileID: 2100000, guid: aec022bb9465fd74fb9864cd01ceeb14, type: 2}
   materials:
     materialImportMode: 2
     materialName: 1
