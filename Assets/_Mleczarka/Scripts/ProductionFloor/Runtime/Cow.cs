@@ -14,6 +14,10 @@ namespace Mleczarka.ProductionFloor
         public bool own;
         public string cowName = "Krasula", cowNameAcc = "Krasulę";
         public float milkReach = 2.8f;
+        /// <summary>Kontroler animacji (stoi / idzie) — na korzeniu prefabu, bo nadpisanie w zagnieżdżonym modelu FBX się nie zapisuje.</summary>
+        public RuntimeAnimatorController controller;
+        /// <summary>Pastwisko (ogrodzony prostokąt): krowa wybiera cele spaceru tylko w jego środku.</summary>
+        public bool hasArea; public Vector3 areaCenter; public Vector2 areaHalf; public float areaYaw;
 
         Vector3 _home, _target; float _until; bool _walking; Animator _anim; Collider[] _own;
         static readonly int WalkId = Animator.StringToHash("Walk");
@@ -22,6 +26,7 @@ namespace Mleczarka.ProductionFloor
         {
             _home = transform.position;
             _anim = GetComponentInChildren<Animator>();
+            if (_anim && controller && _anim.runtimeAnimatorController != controller) { _anim.runtimeAnimatorController = controller; _anim.applyRootMotion = false; }
             _own = GetComponentsInChildren<Collider>();
             _until = Time.time + Random.Range(2f, 14f);
             if (_anim) { _anim.cullingMode = AnimatorCullingMode.CullCompletely; _anim.Play(0, 0, Random.value); _anim.speed = Random.Range(0.85f, 1.1f); }
@@ -38,8 +43,20 @@ namespace Mleczarka.ProductionFloor
             if (!_walking)
             {
                 if (Time.time < _until) return;
-                var off = Random.insideUnitCircle * wanderRadius;
-                _target = _home + new Vector3(off.x, 0, off.y);
+                if (hasArea)
+                {
+                    var q = Quaternion.Euler(0, areaYaw, 0);
+                    var loc = new Vector3(Random.Range(-areaHalf.x, areaHalf.x), 0, Random.Range(-areaHalf.y, areaHalf.y));
+                    var near = transform.position + Random.insideUnitSphere * 5f;   // krótkie spacery, ale w obrębie płotu
+                    var inLoc = Quaternion.Inverse(q) * (near - areaCenter);
+                    loc = new Vector3(Mathf.Clamp(inLoc.x, -areaHalf.x, areaHalf.x), 0, Mathf.Clamp(inLoc.z, -areaHalf.y, areaHalf.y));
+                    _target = areaCenter + q * loc;
+                }
+                else
+                {
+                    var off = Random.insideUnitCircle * wanderRadius;
+                    _target = _home + new Vector3(off.x, 0, off.y);
+                }
                 if (Flat(_target - transform.position) < 0.8f) { _until = Time.time + 3f; return; }
                 _walking = true; SetWalk(true); _until = Time.time + 15f;
                 return;
@@ -94,7 +111,7 @@ namespace Mleczarka.ProductionFloor
         {
             if (!Near()) return null;
             var p = G.Sim.S.players[GameController.Me]; if (!CareerSim.Active(p)) return null;
-            return G.Run(new MilkOwnCow(GameController.Me));
+            return G.Run(new MilkOwnCow(GameController.Me, true));
         }
     }
 }

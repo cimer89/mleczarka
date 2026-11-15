@@ -22,6 +22,10 @@ namespace Mleczarka.ProductionFloor.EditorTools
         const string Dir = "Assets/_Mleczarka/Art/ThirdParty/Quaternius/FarmAnimals/";
         const string Fbx = Dir + "Cow.fbx", Ctrl = Dir + "Krowa.controller", PrefabPath = "Assets/_Mleczarka/Prefabs/World/Krowa.prefab";
         const float CowLength = 2.3f;
+        const string FenceFbx = "Assets/_Mleczarka/Art/ThirdParty/Quaternius/MedievalVillageMegaKit/FBX/Prop_WoodenFence_Single.fbx";
+        const string GateFbx = "Assets/_Mleczarka/Art/World/Furtka_Pastwisko.fbx", GatePrefab = "Assets/_Mleczarka/Prefabs/World/Furtka_Pastwisko.prefab";
+        const float FenceHeight = 1.5f;   // płot z pakietu ma 0,81 m — na krowy podnosimy do ok. 1,2 m
+        const float PostWidth = 0.14f;
 
         [MenuItem("Mleczarka/Kariera/6. Krowy, nowe miejsca skupu i własna krowa")]
         public static void Build()
@@ -79,35 +83,60 @@ namespace Mleczarka.ProductionFloor.EditorTools
             // ---- krowy przy gospodarstwach ----
             var taken = new List<Vector3>();
             int total = 0;
+            var fence = AssetDatabase.LoadAssetAtPath<GameObject>(FenceFbx);
+            var gatePf = SetupGatePrefab(fence, log);
+            var pastures = new List<(Vector3 c, Quaternion q, float w, float d)>();
+            var barns = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None)
+                .Where(t => t.name.StartsWith("Stodola") && (t.parent == null || !t.parent.name.StartsWith("Stodola"))).ToList();
             foreach (var z in farmZones.OrderBy(z => z.farmId))
             {
                 int cows = CareerSim.Cows(z.farmId);
                 var house = houses.OrderBy(h => Flat(Center(h) - z.transform.position)).FirstOrDefault();
                 var center = house && Flat(Center(house) - z.transform.position) < 30f ? Center(house) : z.transform.position;
-                var spots = FindSpots(center, z.transform.position, cows, 8f, 26f, taken);
                 var g = new GameObject($"Krowy: {z.displayName} ({cows})").transform; g.SetParent(root, false);
-                for (int i = 0; i < spots.Count; i++) { Spawn(prefab, g, spots[i], center, $"Krowa {i + 1}"); taken.Add(spots[i]); total++; }
-                log.AppendLine($"{z.displayName}: krowy {spots.Count}/{cows} ({cows * CareerData.LitersPerCow:0} l na dobę){(spots.Count < cows ? " — UWAGA: za mało miejsca" : "")}");
+                var barn = barns.Where(b => Flat(Center(b) - center) < 30f).OrderBy(b => Flat(Center(b) - center)).FirstOrDefault();
+                var road = RoadNear(center, 40f) ?? z.transform.position;
+                if (fence && gatePf && TryPasture(center, road, barn, cows + 5, cows + 4, pastures, out var pc, out var pq, out var pw, out var pd))
+                {
+                    pastures.Add((pc, pq, pw, pd));
+                    BuildPasture(g, fence, gatePf, pc, pq, pw, pd, center, log); Physics.SyncTransforms();
+                    for (int i = 0; i < cows; i++)
+                    {
+                        var p = GroundT(pc + pq * new Vector3((i - (cows - 1) * 0.5f) * pw / (cows + 1), 0, (i % 2 == 0 ? -1f : 1f) * pd * 0.12f));
+                        var cow = Spawn(prefab, g, p, center, $"Krowa {i + 1}").GetComponent<Cow>();
+                        SetArea(cow, pc, pq, pw, pd); taken.Add(p); total++;
+                    }
+                    log.AppendLine($"{z.displayName}: pastwisko {pw:0} × {pd:0} m, {Flat(pc - center):0} m za domem{(barn ? " (za stodołą)" : "")}, krowy {cows} ({cows * CareerData.LitersPerCow:0} l na dobę)");
+                }
+                else
+                {
+                    var spots = FindSpots(center, z.transform.position, cows, 8f, 26f, taken);
+                    for (int i = 0; i < spots.Count; i++) { Spawn(prefab, g, spots[i], center, $"Krowa {i + 1}"); taken.Add(spots[i]); total++; }
+                    log.AppendLine($"UWAGA {z.displayName}: brak miejsca na ogrodzone pastwisko — krowy luzem przy domu ({spots.Count}/{cows})");
+                }
             }
 
-            // ---- własna krowa na działce przy domu ----
+            // ---- własna krowa: małe ogrodzone pastwisko za letnią kuchnią ----
             var dom = zones.FirstOrDefault(z => z.kind == PlaceKind.Dom);
             if (dom)
             {
-                float maxR = Mathf.Max(5f, dom.radius - 2f);
-                var spot = FindSpots(dom.transform.position, dom.transform.position + Vector3.forward * 100f, 1, 4f, maxR, taken, 2f);
-                if (spot.Count > 0)
+                var hc = dom.transform.position;
+                var road = RoadNear(hc, 60f) ?? hc + Vector3.forward * 20f;
+                if (fence && gatePf && TryPasture(hc, road, null, 6, 5, pastures, out var pc, out var pq, out var pw, out var pd))
                 {
-                    var own = Spawn(prefab, root, spot[0], dom.transform.position, "Własna krowa (Krasula)");
-                    var cow = own.GetComponent<Cow>(); cow.own = true; cow.wanderRadius = 1.5f;
-                    log.AppendLine($"Własna krowa: {spot[0]:F0}, {Flat(spot[0] - dom.transform.position):0.0} m od środka domu (promień domu {dom.radius:0})");
+                    pastures.Add((pc, pq, pw, pd));
+                    var g = new GameObject("Własne pastwisko").transform; g.SetParent(root, false);
+                    BuildPasture(g, fence, gatePf, pc, pq, pw, pd, hc, log); Physics.SyncTransforms();
+                    var own = Spawn(prefab, g, GroundT(pc), hc, "Własna krowa (Krasula)");
+                    var cow = own.GetComponent<Cow>(); cow.own = true; SetArea(cow, pc, pq, pw, pd);
+                    log.AppendLine($"Własna krowa: pastwisko {pw:0} × {pd:0} m, {Flat(pc - hc):0} m od letniej kuchni");
                 }
-                else log.AppendLine("UWAGA: brak miejsca na własną krowę przy domu.");
+                else log.AppendLine("UWAGA: brak miejsca na własne pastwisko przy domu.");
             }
             log.AppendLine($"Razem krów: {total} + własna");
 
             var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-            EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene);
+            EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
             Directory.CreateDirectory("Screenshots"); File.WriteAllText("Screenshots/krowy.txt", log.ToString());
             Debug.Log("[Mleczarka] Krowy: Screenshots/krowy.txt");
         }
@@ -153,15 +182,18 @@ namespace Mleczarka.ProductionFloor.EditorTools
             AnimationClip Clip(string n) => all.FirstOrDefault(c => c.name == n || c.name.EndsWith("|" + n));
             var idle = Clip("Idle"); var walk = Clip("WalkSlow") ?? Clip("Walk");
             log.AppendLine("Animacje krowy: " + string.Join(", ", all.Select(c => c.name)));
-            if (File.Exists(Ctrl)) AssetDatabase.DeleteAsset(Ctrl);
-            var ctrl = AnimatorController.CreateAnimatorControllerAtPath(Ctrl);
+            // kontroler: wczytany i przebudowany w miejscu (usunięcie i ponowne utworzenie gubi referencję w prefabie)
+            var ctrl = AssetDatabase.LoadAssetAtPath<AnimatorController>(Ctrl) ?? AnimatorController.CreateAnimatorControllerAtPath(Ctrl);
+            foreach (var prm in ctrl.parameters.ToArray()) ctrl.RemoveParameter(prm);
             ctrl.AddParameter("Walk", AnimatorControllerParameterType.Bool);
             var sm = ctrl.layers[0].stateMachine;
+            foreach (var st in sm.states.ToArray()) sm.RemoveState(st.state);
             var sIdle = sm.AddState("Stoi"); sIdle.motion = idle;
             var sWalk = sm.AddState("Idzie"); sWalk.motion = walk;
             sm.defaultState = sIdle;
             var a = sIdle.AddTransition(sWalk); a.AddCondition(AnimatorConditionMode.If, 0, "Walk"); a.hasExitTime = false; a.duration = 0.3f;
             var b = sWalk.AddTransition(sIdle); b.AddCondition(AnimatorConditionMode.IfNot, 0, "Walk"); b.hasExitTime = false; b.duration = 0.3f;
+            EditorUtility.SetDirty(ctrl); AssetDatabase.SaveAssets();
 
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(Fbx);
             foreach (var leftover in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects().Where(g => g.name == "Krowa")) Object.DestroyImmediate(leftover);
@@ -186,10 +218,17 @@ namespace Mleczarka.ProductionFloor.EditorTools
             var box = rootGo.AddComponent<BoxCollider>();
             box.center = new Vector3(0, bb.size.y * 0.55f, 0); box.size = new Vector3(bb.size.x * 0.75f, bb.size.y * 0.7f, bb.size.z * 0.85f);
             rootGo.layer = 2;   // Ignore Raycast: kamera i promienie ziemi przechodzą, gracz się zatrzymuje
-            rootGo.AddComponent<Cow>();
+            rootGo.AddComponent<Cow>().controller = ctrl;
             log.AppendLine($"Krowa: wymiary {bb.size.x:0.00} × {bb.size.y:0.00} × {bb.size.z:0.00} m");
             Directory.CreateDirectory(Path.GetDirectoryName(PrefabPath));
-            try { return PrefabUtility.SaveAsPrefabAsset(rootGo, PrefabPath); }
+            try
+            {
+                var pf = PrefabUtility.SaveAsPrefabAsset(rootGo, PrefabPath);
+                var pa = pf.GetComponentInChildren<Animator>();
+                var pcow = pf.GetComponent<Cow>();
+                log.AppendLine($"Prefab krowy: animator {(pa ? "jest" : "BRAK")}, kontroler w modelu {(pa && pa.runtimeAnimatorController ? pa.runtimeAnimatorController.name : "brak")}, w skrypcie krowy {(pcow && pcow.controller ? pcow.controller.name : "BRAK")}, ruch: {(walk ? walk.name : "BRAK")}, stanie: {(idle ? idle.name : "BRAK")}");
+                return pf;
+            }
             finally { Object.DestroyImmediate(rootGo); }
         }
 
@@ -232,6 +271,200 @@ namespace Mleczarka.ProductionFloor.EditorTools
                 res.Add(c.p); if (res.Count >= count) break;
             }
             return res;
+        }
+
+        // ---------- pastwisko: ogrodzenie z furtką ----------
+        static float _pitch, _fenceScale = 1f, _gateScale = 1f; static bool _longX, _gateLongX;
+
+        static void Measure(GameObject src, out float len, out bool longX)
+        {
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(src);
+            go.transform.position = Vector3.zero;   // obrót z modelu zostaje (pakiet Quaternius ma -90° w X)
+            var rs = go.GetComponentsInChildren<Renderer>(); var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+            longX = b.size.x >= b.size.z; len = longX ? b.size.x : b.size.z;
+            Object.DestroyImmediate(go);
+        }
+
+        static GameObject SetupGatePrefab(GameObject fence, StringBuilder log)
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(GateFbx);
+            if (!fence || !model) { log.AppendLine("UWAGA: brak płotu albo furtki: " + FenceFbx + " / " + GateFbx); return null; }
+            // pakiet Quaternius bywa w centymetrach — skala do prawdziwego segmentu 2,06 m (słupek co 1,92 m)
+            Measure(fence, out var len, out _longX);
+            _fenceScale = 2.064f / len; _pitch = 2.064f - PostWidth;
+            Measure(model, out var glen, out _gateLongX);
+            _gateScale = 1.92f / glen;
+            var fmat = fence.GetComponentInChildren<Renderer>().sharedMaterial;
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(model);
+            go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.sharedMaterial = fmat;
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>()) mf.gameObject.AddComponent<BoxCollider>();
+            var gate = go.AddComponent<PastureGate>();
+            gate.leaf = go.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Furtka_Skrzydlo");
+            Directory.CreateDirectory(Path.GetDirectoryName(GatePrefab));
+            try { return PrefabUtility.SaveAsPrefabAsset(go, GatePrefab); }
+            finally { Object.DestroyImmediate(go); log.AppendLine($"Płot: segment {_pitch:0.00} m (oś {(_longX ? "X" : "Z")}, skala {_fenceScale:0.####}), furtka (oś {(_gateLongX ? "X" : "Z")}, skala {_gateScale:0.####})"); }
+        }
+
+        /// <summary>Prostokąt pastwiska za domem (i stodołą), od strony przeciwnej do drogi: sam teren, bez budynków, drzew, płotów i dróg.</summary>
+        static bool TryPasture(Vector3 house, Vector3 road, Transform barn, int nW, int nD, List<(Vector3 c, Quaternion q, float w, float d)> used,
+                               out Vector3 c, out Quaternion q, out float w, out float d)
+        {
+            var away = house - road; away.y = 0; if (away.sqrMagnitude < 0.01f) away = Vector3.forward; away.Normalize();
+            float start = 8f;
+            if (barn)
+            {
+                var rs = barn.GetComponentsInChildren<Renderer>(); var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = new Vector3((i & 1) == 0 ? b.min.x : b.max.x, 0, (i & 2) == 0 ? b.min.z : b.max.z);
+                    start = Mathf.Max(start, Vector3.Dot(corner - new Vector3(house.x, 0, house.z), away) + 3f);
+                }
+            }
+            for (int shrink = 0; shrink < 3; shrink++)
+            {
+                int sw = Mathf.Max(4, nW - shrink * 2), sd = Mathf.Max(3, nD - shrink);
+                w = sw * _pitch; d = sd * _pitch;
+                foreach (float dOff in new[] { 0f, 3f, 6f, 10f, 14f })
+                    foreach (float lat in new[] { 0f, 5f, -5f, 10f, -10f, 15f, -15f })
+                    {
+                        // lekki obrót, żeby ogrodzenie było równoległe do domu / ulicy
+                        q = Quaternion.LookRotation(away);
+                        var side = q * Vector3.right;
+                        var cc = house + away * (start + dOff + d / 2) + side * lat; cc.y = GroundT(cc).y; float ww = w;
+                        if (used.Any(u => Flat(u.c - cc) < (u.w + ww) * 0.5f + 4f)) continue;
+                        if (Free(cc, q, w, d)) { c = cc; return true; }
+                    }
+            }
+            c = default; q = default; w = d = 0; return false;
+        }
+
+        static bool Free(Vector3 c, Quaternion q, float w, float d)
+        {
+            float lo = 1e9f, hi = -1e9f;
+            for (float x = -w / 2 - 1f; x <= w / 2 + 1f; x += 2f)
+                for (float z = -d / 2 - 1f; z <= d / 2 + 1f; z += 2f)
+                {
+                    var p = c + q * new Vector3(x, 0, z);
+                    if (!Physics.Raycast(p + Vector3.up * 80f, Vector3.down, out var h, 200f, ~0, QueryTriggerInteraction.Ignore)) return false;
+                    if (!(h.collider is TerrainCollider)) return false;     // budynek, drzewo, płot, droga
+                    lo = Mathf.Min(lo, h.point.y); hi = Mathf.Max(hi, h.point.y);
+                }
+            if (hi - lo > 2.5f) return false;
+            var mid = new Vector3(c.x, (lo + hi) * 0.5f + 1.6f, c.z);
+            var ext = new Vector3(w / 2 + 0.8f, 1.3f + (hi - lo) * 0.5f, d / 2 + 0.8f);
+            return !Physics.OverlapBox(mid, ext, q, ~0, QueryTriggerInteraction.Ignore).Any(col => !(col is TerrainCollider));
+        }
+
+        static void BuildPasture(Transform parent, GameObject fence, GameObject gatePrefab, Vector3 c, Quaternion q, float w, float d, Vector3 house, StringBuilder log)
+        {
+            var g = new GameObject("Pastwisko (ogrodzenie)").transform; g.SetParent(parent, false);
+            var cs = new[] { new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0, -d / 2), new Vector3(w / 2, 0, d / 2), new Vector3(-w / 2, 0, d / 2) };
+            int nW = Mathf.RoundToInt(w / _pitch);
+            for (int s = 0; s < 4; s++)
+            {
+                Vector3 a = c + q * cs[s], b = c + q * cs[(s + 1) % 4];
+                int n = Mathf.RoundToInt(Vector3.Distance(new Vector3(a.x, 0, a.z), new Vector3(b.x, 0, b.z)) / _pitch);
+                for (int i = 0; i < n; i++)
+                {
+                    var p0 = GroundT(Vector3.Lerp(a, b, (float)i / n)); var p1 = GroundT(Vector3.Lerp(a, b, (float)(i + 1) / n));
+                    var dir = p1 - p0; var mid = (p0 + p1) * 0.5f + Vector3.down * 0.03f;
+                    bool isGate = s == 0 && i == nW / 2;   // furtka w środku boku od strony domu
+                    var src = isGate ? gatePrefab : fence; bool lx = isGate ? _gateLongX : _longX;
+                    var go = (GameObject)PrefabUtility.InstantiatePrefab(src, g);
+                    go.name = isGate ? "Furtka" : "Płot " + (s + 1) + "." + (i + 1);
+                    var flat = new Vector3(dir.x, 0, dir.z).normalized;
+                    var rot = Quaternion.LookRotation(dir.normalized, Vector3.up) * (lx ? Quaternion.Euler(0, -90f, 0) : Quaternion.identity);
+                    if (isGate) rot = Quaternion.LookRotation(flat, Vector3.up) * (lx ? Quaternion.Euler(0, -90f, 0) : Quaternion.identity);
+                    var baseRot = src.transform.rotation;
+                    go.transform.SetPositionAndRotation(mid, rot * baseRot);
+                    float sc = isGate ? _gateScale : _fenceScale;
+                    // wysokość: ta oś modelu, która po obrocie patrzy w górę
+                    var upL = Quaternion.Inverse(baseRot) * Vector3.up;
+                    var hs = new Vector3(sc, sc, sc);
+                    if (Mathf.Abs(upL.x) > 0.7f) hs.x *= FenceHeight; else if (Mathf.Abs(upL.y) > 0.7f) hs.y *= FenceHeight; else hs.z *= FenceHeight;
+                    go.transform.localScale = Vector3.Scale(go.transform.localScale, hs);
+                    if (!isGate) foreach (var mf in go.GetComponentsInChildren<MeshFilter>()) mf.gameObject.AddComponent<BoxCollider>();
+                    else
+                    {
+                        // skrzydło otwiera się do środka pastwiska
+                        var gt = go.GetComponent<PastureGate>();
+                        if (gt && gt.leaf)
+                        {
+                            var leafMid = gt.leaf.GetComponent<Renderer>() ? gt.leaf.GetComponent<Renderer>().bounds.center : gt.leaf.position;
+                            var arm = leafMid - gt.leaf.position; arm.y = 0;
+                            var plus = gt.leaf.position + Quaternion.Euler(0, 90f, 0) * arm;
+                            gt.openAngle = Flat(plus - c) < Flat(gt.leaf.position + Quaternion.Euler(0, -90f, 0) * arm - c) ? 95f : -95f;
+                        }
+                    }
+                }
+            }
+            PaintGrass(c, q, w, d, house + (c - house) * 0.25f);
+        }
+
+        static void SetArea(Cow cow, Vector3 c, Quaternion q, float w, float d)
+        {
+            cow.hasArea = true; cow.areaCenter = c; cow.areaYaw = q.eulerAngles.y;
+            cow.areaHalf = new Vector2(Mathf.Max(0.5f, w / 2 - 1.6f), Mathf.Max(0.5f, d / 2 - 1.6f));
+        }
+
+        /// <summary>Pod pastwiskiem trawa jak na podwórzu (zamiast uprawy z pola).</summary>
+        static void PaintGrass(Vector3 c, Quaternion q, float w, float d, Vector3 yard)
+        {
+            var ty = Terrain.activeTerrains.FirstOrDefault(t => Inside(t, yard)); if (!ty) return;
+            var yd = ty.terrainData; var yl = yd.terrainLayers;
+            int ax = Mathf.Clamp((int)((yard.x - ty.transform.position.x) / yd.size.x * yd.alphamapWidth), 0, yd.alphamapWidth - 1);
+            int az = Mathf.Clamp((int)((yard.z - ty.transform.position.z) / yd.size.z * yd.alphamapHeight), 0, yd.alphamapHeight - 1);
+            var yw = yd.GetAlphamaps(ax, az, 1, 1);
+            int dx = Mathf.Clamp((int)((yard.x - ty.transform.position.x) / yd.size.x * yd.detailWidth), 0, yd.detailWidth - 1);
+            int dz = Mathf.Clamp((int)((yard.z - ty.transform.position.z) / yd.size.z * yd.detailHeight), 0, yd.detailHeight - 1);
+            var ydet = new int[yd.detailPrototypes.Length];
+            for (int k = 0; k < ydet.Length; k++) ydet[k] = yd.GetDetailLayer(dx, dz, 1, 1, k)[0, 0];
+            var inv = Quaternion.Inverse(q);
+            bool In(Vector3 p) { var l = inv * (p - c); return Mathf.Abs(l.x) <= w / 2 + 0.3f && Mathf.Abs(l.z) <= d / 2 + 0.3f; }
+            float r = Mathf.Sqrt(w * w + d * d) / 2 + 1f;
+            foreach (var t in Terrain.activeTerrains)
+            {
+                var td = t.terrainData; var tp = t.transform.position;
+                if (c.x + r < tp.x || c.x - r > tp.x + td.size.x || c.z + r < tp.z || c.z - r > tp.z + td.size.z) continue;
+                // tekstura
+                int x0 = Mathf.Clamp((int)((c.x - r - tp.x) / td.size.x * td.alphamapWidth), 0, td.alphamapWidth - 1), x1 = Mathf.Clamp((int)((c.x + r - tp.x) / td.size.x * td.alphamapWidth), 0, td.alphamapWidth - 1);
+                int z0 = Mathf.Clamp((int)((c.z - r - tp.z) / td.size.z * td.alphamapHeight), 0, td.alphamapHeight - 1), z1 = Mathf.Clamp((int)((c.z + r - tp.z) / td.size.z * td.alphamapHeight), 0, td.alphamapHeight - 1);
+                var a = td.GetAlphamaps(x0, z0, x1 - x0 + 1, z1 - z0 + 1); var tl = td.terrainLayers;
+                for (int iz = 0; iz <= z1 - z0; iz++)
+                    for (int ix = 0; ix <= x1 - x0; ix++)
+                    {
+                        var p = new Vector3(tp.x + (x0 + ix + 0.5f) / td.alphamapWidth * td.size.x, 0, tp.z + (z0 + iz + 0.5f) / td.alphamapHeight * td.size.z);
+                        if (!In(p)) continue;
+                        for (int k = 0; k < tl.Length; k++) { int yk = System.Array.IndexOf(yl, tl[k]); a[iz, ix, k] = yk >= 0 ? yw[0, 0, yk] : 0f; }
+                    }
+                td.SetAlphamaps(x0, z0, a);
+                // kępy roślin (bez kłosów z pola)
+                int dx0 = Mathf.Clamp((int)((c.x - r - tp.x) / td.size.x * td.detailWidth), 0, td.detailWidth - 1), dx1 = Mathf.Clamp((int)((c.x + r - tp.x) / td.size.x * td.detailWidth), 0, td.detailWidth - 1);
+                int dz0 = Mathf.Clamp((int)((c.z - r - tp.z) / td.size.z * td.detailHeight), 0, td.detailHeight - 1), dz1 = Mathf.Clamp((int)((c.z + r - tp.z) / td.size.z * td.detailHeight), 0, td.detailHeight - 1);
+                for (int k = 0; k < td.detailPrototypes.Length; k++)
+                {
+                    var dl = td.GetDetailLayer(dx0, dz0, dx1 - dx0 + 1, dz1 - dz0 + 1, k);
+                    for (int iz = 0; iz <= dz1 - dz0; iz++)
+                        for (int ix = 0; ix <= dx1 - dx0; ix++)
+                        {
+                            var p = new Vector3(tp.x + (dx0 + ix + 0.5f) / td.detailWidth * td.size.x, 0, tp.z + (dz0 + iz + 0.5f) / td.detailHeight * td.size.z);
+                            if (In(p)) dl[iz, ix] = k < ydet.Length ? ydet[k] : 0;
+                        }
+                    td.SetDetailLayer(dx0, dz0, k, dl);
+                }
+                EditorUtility.SetDirty(td);
+            }
+        }
+
+        static bool Inside(Terrain t, Vector3 p) { var tp = t.transform.position; var s = t.terrainData.size; return p.x >= tp.x && p.x <= tp.x + s.x && p.z >= tp.z && p.z <= tp.z + s.z; }
+
+        /// <summary>Punkt na terenie (nie na płocie, dachu czy drzewie).</summary>
+        static Vector3 GroundT(Vector3 p)
+        {
+            foreach (var h in Physics.RaycastAll(p + Vector3.up * 80f, Vector3.down, 200f, ~0, QueryTriggerInteraction.Ignore).OrderBy(h => h.distance))
+                if (h.collider is TerrainCollider) return h.point;
+            return Ground(p);
         }
 
         /// <summary>Najbliższy punkt drogi: promienie w dół po okręgach wokół domu (kolizje dróg są wklęsłe, ClosestPoint na nich nie działa).</summary>

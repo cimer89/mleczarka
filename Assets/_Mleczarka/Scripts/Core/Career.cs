@@ -209,11 +209,11 @@ namespace Mleczarka.Core
         }
 
         /// <summary>Własna krowa na działce przy domu: mleko za darmo — najpierw do lodówki, resztę do bańki.</summary>
-        public static Result MilkOwnCow(Simulation sim, int pid)
+        public static Result MilkOwnCow(Simulation sim, int pid, bool atCow = false)
         {
             var p = sim.S.players[pid]; var c = p.career;
             if (!Active(p)) return Result.Fail("Tylko w karierze.");
-            if (!sim.IsAtPlace(pid, PlaceKind.Dom)) return Result.Fail("Twoja krowa pasie się na działce przy domu.");
+            if (!atCow && !sim.IsAtPlace(pid, PlaceKind.Dom)) return Result.Fail("Twoja krowa pasie się na pastwisku za domem — podejdź do niej.");
             double avail = Math.Floor(c.cowMilk + 0.01);
             if (avail < 1)
             {
@@ -442,7 +442,7 @@ namespace Mleczarka.Core
 
     // ---------------- komendy kariery ----------------
     public sealed class BuyMilkCan : Cmd { public readonly int Farm; public BuyMilkCan(int pid, int f) : base(pid) { Farm = f; } public override Result Execute(Simulation s) => CareerSim.BuyMilk(s, PlayerId, Farm); }
-    public sealed class MilkOwnCow : Cmd { public MilkOwnCow(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.MilkOwnCow(s, PlayerId); }
+    public sealed class MilkOwnCow : Cmd { public readonly bool AtCow; public MilkOwnCow(int pid, bool atCow = false) : base(pid) { AtCow = atCow; } public override Result Execute(Simulation s) => CareerSim.MilkOwnCow(s, PlayerId, AtCow); }
     public sealed class PourMilk : Cmd { public PourMilk(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.PourToFridge(s, PlayerId); }
     public sealed class StartKitchen : Cmd { public readonly string Recipe; public readonly int Qty; public StartKitchen(int pid, string r, int q) : base(pid) { Recipe = r; Qty = q; } public override Result Execute(Simulation s) => CareerSim.StartJob(s, PlayerId, Recipe, Qty); }
     public sealed class KitchenAct : Cmd { public readonly string Station; public KitchenAct(int pid, string st) : base(pid) { Station = st; } public override Result Execute(Simulation s) => CareerSim.Act(s, PlayerId, Station); }

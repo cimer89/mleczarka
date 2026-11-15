@@ -82,15 +82,38 @@ namespace Mleczarka.ProductionFloor.EditorTools
                 }
                 case 3:
                 {
-                    // gospodarstwo z 3 krowami (Wiśniewscy), widok z boku
+                    // gospodarstwo z 3 krowami (Wiśniewscy): widok od furtki na ogrodzone pastwisko
                     var grp = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).FirstOrDefault(x => x.name.StartsWith("Krowy: Wiśniewscy"));
-                    var cw = grp.GetComponentsInChildren<Cow>(); var mid = cw.Aggregate(Vector3.zero, (a, x) => a + x.transform.position) / cw.Length;
-                    var pos = Ground(mid + new Vector3(7f, 0, -7f));
-                    Teleport(pos + Vector3.up * 0.2f, Yaw(pos, mid), 10f);
+                    var cw = grp.GetComponentsInChildren<Cow>(); var mid = cw[0].hasArea ? cw[0].areaCenter : cw.Aggregate(Vector3.zero, (a, x) => a + x.transform.position) / cw.Length;
+                    var gate = grp.GetComponentsInChildren<Transform>().FirstOrDefault(x => x.name == "Furtka");
+                    var from = gate ? gate.position + (gate.position - mid).normalized * 7f + Vector3.Cross(Vector3.up, (gate.position - mid).normalized) * 3f : mid + new Vector3(7f, 0, -7f);
+                    var pos = Ground(from);
+                    Teleport(pos + Vector3.up * 0.2f, Yaw(pos, mid), 12f);
+                    _log.AppendLine($"Wiśniewscy: furtka {(gate ? "jest" : "BRAK")}, segmentów płotu {grp.GetComponentsInChildren<Transform>().Count(x => x.name.StartsWith("Płot "))}");
                     _next = t + 2.5; break;
                 }
-                case 4: ScreenCapture.CaptureScreenshot(Dir + "02_gospodarstwo_3_krowy.png"); _next = t + 0.5; break;
+                case 4:
+                {
+                    ScreenCapture.CaptureScreenshot(Dir + "02_gospodarstwo_3_krowy.png");
+                    // gracz 1,8 m przed furtką, od strony podwórza — furtka powinna się otworzyć
+                    var grp = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).FirstOrDefault(x => x.name.StartsWith("Krowy: Wiśniewscy"));
+                    var gate = grp.GetComponentInChildren<PastureGate>(); var cow = grp.GetComponentInChildren<Cow>();
+                    if (gate && cow)
+                    {
+                        var outDir = gate.transform.position - cow.areaCenter; outDir.y = 0; outDir.Normalize();
+                        var p2 = Ground(gate.transform.position + outDir * 1.8f);
+                        Teleport(p2 + Vector3.up * 0.2f, Yaw(p2, cow.areaCenter), 18f);
+                    }
+                    _next = t + 1.5; break;
+                }
                 case 5:
+                {
+                    var gate = Object.FindObjectsByType<PastureGate>(FindObjectsSortMode.None).OrderBy(x => Vector3.Distance(x.transform.position, g.player.transform.position)).FirstOrDefault();
+                    if (gate && gate.leaf) _log.AppendLine($"furtka przy graczu ({Vector3.Distance(gate.transform.position, g.player.transform.position):0.0} m): skrzydło obrócone o {Quaternion.Angle(gate.leaf.localRotation, Quaternion.identity):0}°");
+                    ScreenCapture.CaptureScreenshot(Dir + "02b_furtka_otwarta.png");
+                    _step = 50; _next = t + 0.5; break;
+                }
+                case 50:
                 {
                     // nowe miejsce skupu: Bielscy — wjazd do strefy, zakup do bańki
                     var z = WorldPlace.All.First(w => w && w.kind == PlaceKind.Gospodarstwo && w.displayName == "Bielscy");
@@ -101,17 +124,19 @@ namespace Mleczarka.ProductionFloor.EditorTools
                     c.canister = 0; p.money = 60;
                     _next = t + 2; break;
                 }
-                case 6:
+                case 51:
                 {
                     _log.AppendLine($"miejsce: {g.PlaceOf(GameController.Me).Kind} {g.PlaceOf(GameController.Me).FarmId}, podpowiedź: {g.ContextHint()}");
                     ScreenCapture.CaptureScreenshot(Dir + "03_nowe_miejsce_skupu.png");
                     _next = t + 0.5; break;
                 }
-                case 7: { double m = p.money; g.DoContextAction(); _log.AppendLine($"zakup: bańka {c.canister:0} l, pieniądze {m} → {p.money}"); _next = t + 6; break; }
-                case 8:
+                case 52: { double m = p.money; g.DoContextAction(); _log.AppendLine($"zakup: bańka {c.canister:0} l, pieniądze {m} → {p.money}"); _next = t + 6; break; }
+                case 53:
                 {
                     var a = own.GetComponentInChildren<Animator>();
-                    _log.AppendLine($"animator własnej krowy: {(a && a.runtimeAnimatorController ? a.runtimeAnimatorController.name : "brak")}, stan: {(a ? a.GetCurrentAnimatorClipInfo(0).FirstOrDefault().clip?.name : "-")}");
+                    var clip = a && a.runtimeAnimatorController && a.GetCurrentAnimatorClipInfo(0).Length > 0 ? a.GetCurrentAnimatorClipInfo(0)[0].clip.name : "-";
+                    int walking = cows.Count(x => x && x.GetComponentInChildren<Animator>() && x.GetComponentInChildren<Animator>().runtimeAnimatorController && x.GetComponentInChildren<Animator>().GetBool("Walk"));
+                    _log.AppendLine($"animator własnej krowy: {(a && a.runtimeAnimatorController ? a.runtimeAnimatorController.name : "brak")}, klip: {clip}; krów w ruchu teraz: {walking}/{cows.Length}");
                     _next = t + 0.5; break;
                 }
                 default:
