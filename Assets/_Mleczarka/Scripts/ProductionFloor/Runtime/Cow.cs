@@ -25,7 +25,7 @@ namespace Mleczarka.ProductionFloor
 
         void Start()
         {
-            _home = transform.position;
+            _home = transform.position; _nextMoo = Time.time + Random.Range(3f, 60f);
             _anim = GetComponentInChildren<Animator>();
             if (_anim && controller && _anim.runtimeAnimatorController != controller) { _anim.runtimeAnimatorController = controller; _anim.applyRootMotion = false; }
             _own = GetComponentsInChildren<Collider>();
@@ -39,8 +39,19 @@ namespace Mleczarka.ProductionFloor
             if (own) { GameController.HintHook -= Hint; GameController.ActionHook -= Action; }
         }
 
+        float _nextMoo;
+        void Moo()
+        {
+            if (Time.time < _nextMoo) return;
+            _nextMoo = Time.time + Random.Range(25f, 80f);
+            var g = G; if (!g || !g.player) return;
+            if ((g.player.transform.position - transform.position).sqrMagnitude > 40f * 40f) return;
+            GameAudio.Play("Krowa_Muczenie", transform.position + Vector3.up * 1.2f + transform.forward * 1f, 0.75f, 6f);
+        }
+
         void Update()
         {
+            Moo();
             if (_milking) { MilkingUpdate(); return; }
             if (!_walking)
             {
@@ -178,6 +189,7 @@ namespace Mleczarka.ProductionFloor
                 a.Hands(() => u + fwd - Vector3.up * (0.06f + 0.05f * Mathf.Max(0, Mathf.Sin(k))) + _side * 0.12f,
                         () => u - fwd - Vector3.up * (0.06f + 0.05f * Mathf.Max(0, Mathf.Sin(k + Mathf.PI))) + _side * 0.12f, 0.3f);
             }
+            GameAudio.Loop("Dojenie_Wiadro", held && t > 0.9f, transform, 0.9f);
             if (_bucketMilk) _bucketMilk.localPosition = _bucketMilkPos + Vector3.up * (0.2f * Mathf.Clamp01((float)(_session / 20.0)));
             if (held) _released = -1; else if (_released < 0) _released = Time.time;
             if (held && Time.time >= _nextLiter)
@@ -194,6 +206,7 @@ namespace Mleczarka.ProductionFloor
         void EndMilking(string why)
         {
             _milking = false; _until = Time.time + Random.Range(4f, 10f);
+            GameAudio.Loop("Dojenie_Wiadro", false);
             var pl = G.player; var a = ActionAnim.For(pl);
             if (a) { a.Stop(); a.HideProp("wiadro"); }
             if (pl) { pl.InputBlocked = false; pl.orbitWhenBlocked = true; }

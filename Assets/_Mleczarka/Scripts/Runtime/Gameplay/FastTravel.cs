@@ -81,6 +81,7 @@ namespace Mleczarka.Gameplay
                 Physics.SyncTransforms();
             }
             g.SkipTime(secs);
+            GameAudio.Play("Szybki_Transport");
             return Result.Success($"Szybki transport {ModeName(mode)} do: {p.displayName} — {dist / 1000f:0.0} km, minęło {Duration(secs)}.");
         }
 

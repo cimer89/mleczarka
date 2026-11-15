@@ -166,6 +166,7 @@ namespace Mleczarka.ProductionFloor
             bike.SetParent(G.player.transform, false);
             bike.localPosition = Vector3.zero; bike.localRotation = Quaternion.identity;
             G.player.SetBike(true, bike);
+            GameAudio.Play("Dzwonek_Rower", bike.position, 0.7f);
             G.Say("Na rowerze: W — pedałuj, S — hamuj, A/D — kierownica, Shift — mocniej, E albo B — zsiądź.");
         }
 
@@ -255,6 +256,7 @@ namespace Mleczarka.ProductionFloor
         void Animate()
         {
             float t = Time.time, dt = Time.deltaTime; var c = P.career;
+            GameAudio.Loop("Mieszanie_Garnek", Time.time - _handsAt < 0.8f && _near != null && _near.id == "kuchenka", potLid ? potLid : transform, 0.8f);
             if (potLid) potLid.localPosition = _lidPos + (Working("kuchenka") ? Vector3.up * (0.006f + 0.006f * Mathf.Sin(t * 22)) : Vector3.zero);
             if (steamPoint && Working("kuchenka") && Random.value < dt * 8) Puff(steamPoint.position);
             if (churnPlunger) churnPlunger.localPosition = _churnPos + (Working("maselnica") ? Vector3.up * (0.12f * Mathf.Sin(t * 9)) : Vector3.zero);
@@ -264,7 +266,7 @@ namespace Mleczarka.ProductionFloor
             {
                 bool open = _near != null && _near.id == "lodowka";
                 fridgeDoor.localRotation = Quaternion.Slerp(fridgeDoor.localRotation, _doorRot * Quaternion.AngleAxis(open ? -95 : 0, Vector3.up), dt * 5);
-                if (open && !_fridgeWasOpen) { var a = ActionAnim.For(G.player); if (a) { a.Play(ActionAnim.Kind.Otwiera, 1.1f); Face(_near); } }
+                if (open && !_fridgeWasOpen) { var a = ActionAnim.For(G.player); if (a) { a.Play(ActionAnim.Kind.Otwiera, 1.1f); Face(_near); } GameAudio.Play("Lodowka_Drzwi", fridgeDoor.position, 0.8f, 1f, 2.4f); }
                 _fridgeWasOpen = open;
                 if (_fridgeLight) _fridgeLight.intensity = Mathf.MoveTowards(_fridgeLight.intensity, open ? 0.9f : 0f, dt * 3f);
                 int bottles = c.fridge < 0.1 ? 0 : Mathf.Clamp(Mathf.CeilToInt((float)(c.fridge / c.fridgeCap * _fridgeMilk.Count)), 1, _fridgeMilk.Count);

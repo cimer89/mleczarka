@@ -106,6 +106,7 @@ namespace Mleczarka.UI
         void SelectTravel(WorldPlace p)
         {
             if (!G || !p) return;
+            GameAudio.Play("UI_Klik");
             _travelTo = p; _travel.style.display = DisplayStyle.Flex;
             var why = FastTravel.CanGo(G, p);
             var mode = FastTravel.Current(G);

@@ -203178,6 +203178,68 @@ SkinnedMeshRenderer:
     m_Center: {x: -0.002285689, y: 0.014608279, z: 1.7497617}
     m_Extent: {x: 0.08771069, y: 0.09544478, z: 0.093924046}
   m_DirtyAABB: 0
+--- !u!1 &855313772
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 855313774}
+  - component: {fileID: 855313773}
+  m_Layer: 0
+  m_Name: "D\u017Awi\u0119k gry"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &855313773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 855313772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca9e3e90c6f884e4cbc9045826555c41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mleczarka.Runtime::Mleczarka.Gameplay.GameAudio
+  musicDay: {fileID: 8300000, guid: cbdd2bbb888bd0c4ca7bdbdd308e5ce0, type: 3}
+  musicEvening: {fileID: 8300000, guid: 8f0181f829c2c4e4d8934554ba01e69c, type: 3}
+  ambient: {fileID: 8300000, guid: b4bedaee2ffe33540bd2a5f00236ce18, type: 3}
+  effects:
+  - {fileID: 8300000, guid: f9fc0606fab98e74f99376ee54e2970a, type: 3}
+  - {fileID: 8300000, guid: 9cbe7bc9203e24747acb036eb833a228, type: 3}
+  - {fileID: 8300000, guid: cdd212dc5fcb3f640a7553fb6f0e53cc, type: 3}
+  - {fileID: 8300000, guid: 4379eb2f15e66594c862019e36e86984, type: 3}
+  - {fileID: 8300000, guid: 3673561860d5da3468fdb1c308b37801, type: 3}
+  - {fileID: 8300000, guid: c529426e00f65564ca85993e40f192b4, type: 3}
+  - {fileID: 8300000, guid: ba19ca5182fc0a8498e55647a330f82d, type: 3}
+  - {fileID: 8300000, guid: acfdd54fcc9ef7b42b81bc18c7654cbe, type: 3}
+  - {fileID: 8300000, guid: 64933b6c80608b44b8e6ca6662572467, type: 3}
+  - {fileID: 8300000, guid: 98a09edec3036214896dbad453200466, type: 3}
+  - {fileID: 8300000, guid: 0b7da93f23b9ffc4db895f732d70887a, type: 3}
+  musicVolume: 0.32
+  ambientVolume: 0.22
+  effectsVolume: 0.8
+--- !u!4 &855313774
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 855313772}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &855500880
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -521893,3 +521955,4 @@ SceneRoots:
   - {fileID: 784173477}
   - {fileID: 71354404}
   - {fileID: 770392498}
+  - {fileID: 855313774}

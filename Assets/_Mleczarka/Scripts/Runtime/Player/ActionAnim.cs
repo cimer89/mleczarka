@@ -37,6 +37,7 @@ namespace Mleczarka.Player
         /// <summary>Krótka czynność (klip) na określony czas; ponowne wywołanie przedłuża.</summary>
         public void Play(Kind k, float seconds)
         {
+            if (k == Kind.Przelewa && _kind != Kind.Przelewa) Mleczarka.Gameplay.GameAudio.Play("Przelewanie_Mleka", transform.position + Vector3.up, 0.8f, 1f, Mathf.Max(1.2f, seconds + 0.3f));
             _kind = k; _until = Time.time + seconds;
             if (_hasAct) _a.SetInteger(ActId, (int)k);
         }

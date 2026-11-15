@@ -26,6 +26,7 @@ namespace Mleczarka.ProductionFloor
             bool near = g && g.player && Flat(g.player.transform.position - transform.position) < openDistance;
             float target = near ? openAngle : 0f;
             if (Mathf.Approximately(_angle, target)) return;
+            if (near && Mathf.Approximately(_angle, 0f)) GameAudio.Play("Furtka_Skrzypi", leaf.position, 0.7f, 1f, 2.2f);
             _angle = Mathf.MoveTowards(_angle, target, speed * Time.deltaTime);
             leaf.localRotation = _closed * Quaternion.Euler(0, _angle, 0);
         }

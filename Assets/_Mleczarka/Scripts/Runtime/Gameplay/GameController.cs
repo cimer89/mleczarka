@@ -237,7 +237,7 @@ namespace Mleczarka.Gameplay
             {
                 case PlaceKind.Gospodarstwo:
                     if (v) return false;
-                    r = Bus.Send(new BuyMilkCan(Me, place.FarmId)); if (r.Ok) Act(Mleczarka.Player.ActionAnim.Kind.Przelewa, 1.6f); return true;
+                    r = Bus.Send(new BuyMilkCan(Me, place.FarmId)); if (r.Ok) { Act(Mleczarka.Player.ActionAnim.Kind.Przelewa, 1.6f); GameAudio.Play("Banka_Wieczko", PlayerPosition, 0.7f); } return true;
                 case PlaceKind.Dom:
                     if (v && p.vehicle == VehicleKind.Cysterna) { r = Bus.Send(new UnloadTankerHome(Me)); return true; }
                     if (v) { r = Bus.Send(new LoadVanHome(Me)); return true; }
