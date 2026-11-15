@@ -317,13 +317,13 @@ namespace Mleczarka.ProductionFloor
             if (cust != null)
             {
                 var r = G.Run(new HandSell(GameController.Me, cust.want));
-                if (r.Ok) Leave(cust);
+                if (r.Ok) { Leave(cust); G.Act(Mleczarka.Player.ActionAnim.Kind.Podaje, 1.2f); }
                 return r;
             }
             if (NearBike && place.Kind != PlaceKind.Dom)
             {
-                if (p.career.hand >= 0) return G.Run(new ReturnHand(GameController.Me));
-                if (p.career.basket.Sum() > 0) return G.Run(new TakeFromBasket(GameController.Me, BestFromBasket()));
+                if (p.career.hand >= 0) { var rr = G.Run(new ReturnHand(GameController.Me)); if (rr.Ok) G.Act(Mleczarka.Player.ActionAnim.Kind.Bierze, 1.1f); return rr; }
+                if (p.career.basket.Sum() > 0) { var rt = G.Run(new TakeFromBasket(GameController.Me, BestFromBasket())); if (rt.Ok) G.Act(Mleczarka.Player.ActionAnim.Kind.Bierze, 1.1f); return rt; }
             }
             return null;
         }

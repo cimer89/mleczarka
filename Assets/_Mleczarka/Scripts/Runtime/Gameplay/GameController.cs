@@ -237,11 +237,14 @@ namespace Mleczarka.Gameplay
             {
                 case PlaceKind.Gospodarstwo:
                     if (v) return false;
-                    r = Bus.Send(new BuyMilkCan(Me, place.FarmId)); return true;
+                    r = Bus.Send(new BuyMilkCan(Me, place.FarmId)); if (r.Ok) Act(Mleczarka.Player.ActionAnim.Kind.Przelewa, 1.6f); return true;
                 case PlaceKind.Dom:
                     if (v && p.vehicle == VehicleKind.Cysterna) { r = Bus.Send(new UnloadTankerHome(Me)); return true; }
                     if (v) { r = Bus.Send(new LoadVanHome(Me)); return true; }
-                    r = p.career.canister >= 1 ? Bus.Send(new PourMilk(Me)) : Bus.Send(new LoadBasket(Me)); return true;
+                    bool pour = p.career.canister >= 1;
+                    r = pour ? Bus.Send(new PourMilk(Me)) : Bus.Send(new LoadBasket(Me));
+                    if (r.Ok) Act(pour ? Mleczarka.Player.ActionAnim.Kind.Przelewa : Mleczarka.Player.ActionAnim.Kind.Bierze, pour ? 1.6f : 1.3f);
+                    return true;
                 case PlaceKind.Rynek:
                     if (v) return false;
                     r = Result.Fail(p.career.hand >= 0 ? "Podejdź bliżej do klienta, który chce ten towar." : "Weź towar z koszyka roweru (F przy rowerze) i podaj go klientowi."); return true;
@@ -250,6 +253,13 @@ namespace Mleczarka.Gameplay
                     r = Result.Fail(CareerSim.LockedText("hala")); return true;
             }
             return false;
+        }
+
+        /// <summary>Animacja czynności rolnika (bierze, przelewa, podaje…) — tylko pieszo.</summary>
+        public void Act(Mleczarka.Player.ActionAnim.Kind k, float seconds)
+        {
+            if (!player || player.CurrentVehicle || player.OnBike) return;
+            var a = Mleczarka.Player.ActionAnim.For(player); if (a) a.Play(k, seconds);
         }
 
         static void OnVehicleLocked(string msg) { if (Instance) Instance.Say(msg, true); }

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Mleczarka.Core;
 using Mleczarka.Gameplay;
+using Mleczarka.Player;
 using Mleczarka.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -38,6 +39,9 @@ namespace Mleczarka.ProductionFloor
         readonly List<(Transform t, float age)> _puffs = new List<(Transform, float)>();
         Vector3 _lidPos, _churnPos, _pressPos; Quaternion _doorRot;
         readonly List<GameObject> _basketItems = new List<GameObject>();
+        // lodówka: butelki i słoiki pokazują zapas, garnek — zbieranie śmietanki, żarówka świeci przy otwartych drzwiach
+        readonly List<Transform> _fridgeMilk = new List<Transform>(), _fridgeCream = new List<Transform>();
+        Transform _fridgePot; Light _fridgeLight; bool _fridgeWasOpen;
 
         void Start()
         {
@@ -59,6 +63,22 @@ namespace Mleczarka.ProductionFloor
             if (churnPlunger) _churnPos = churnPlunger.localPosition;
             if (pressPlunger) _pressPos = pressPlunger.localPosition;
             if (fridgeDoor) _doorRot = fridgeDoor.localRotation;
+            if (fridgeDoor && fridgeDoor.parent)
+            {
+                foreach (var t in fridgeDoor.parent.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name.StartsWith("Lodowka_Mleko_")) _fridgeMilk.Add(t);
+                    else if (t.name.StartsWith("Lodowka_Smietanka_")) _fridgeCream.Add(t);
+                    else if (t.name.StartsWith("Lodowka_Garnek")) _fridgePot = t;
+                    else if (t.name.StartsWith("Lodowka_Lampa") && !_fridgeLight)
+                    {
+                        var lg = new GameObject("Światło lodówki"); lg.transform.SetParent(t, false);
+                        _fridgeLight = lg.AddComponent<Light>(); _fridgeLight.type = LightType.Point; _fridgeLight.range = 1.3f; _fridgeLight.intensity = 0f;
+                        _fridgeLight.color = new Color(1f, 0.92f, 0.75f); _fridgeLight.shadows = LightShadows.None;
+                    }
+                }
+                _fridgeMilk.Sort((a, b) => string.CompareOrdinal(a.name, b.name)); _fridgeCream.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+            }
         }
 
         bool Blocked()
@@ -170,15 +190,47 @@ namespace Mleczarka.ProductionFloor
             {
                 if (!pressed) return;
                 var list = RecipesAt(_near.id).ToList(); if (list.Count == 0) return;
-                G.Send(new StartKitchen(GameController.Me, list[_recipe].Id, _qty));
+                var rs = G.Send(new StartKitchen(GameController.Me, list[_recipe].Id, _qty));
+                if (rs.Ok) { Face(_near); var a0 = ActionAnim.For(G.player); if (a0) a0.Play(ActionAnim.Kind.Bierze, 1.4f); }
                 _nextHold = Time.time + 0.5f; return;
             }
             var d = CareerData.R(job.recipe).Steps[job.step];
             if (d.Kind == StepKind.Auto) { if (pressed) G.Say($"{d.Label} — poczekaj chwilę."); return; }
             if (!pressed && d.Kind != StepKind.Hold) return;
             var r = G.SendHold(new KitchenAct(GameController.Me, _near.id));
-            if (r.Ok) { _handsAt = Time.time; Face(_near); }
+            if (r.Ok) { _handsAt = Time.time; Face(_near); WorkAnim(_near, d); }
             _nextHold = Time.time + 0.5f;
+        }
+
+        /// <summary>Ruch rąk przy sprzęcie: mieszanie łyżką w garnku, odcedzanie (przelewanie), tłok maselnicy, korba wirówki, prasa; Q na krok — branie.</summary>
+        void WorkAnim(Station s, StepDef d)
+        {
+            var a = ActionAnim.For(G.player); if (!a) return;
+            string lab = d.Label.ToLowerInvariant();
+            if (d.Kind != StepKind.Hold) { a.Play(lab.Contains("przelej") || lab.Contains("rozlej") ? ActionAnim.Kind.Przelewa : ActionAnim.Kind.Bierze, 1.4f); return; }
+            var pl = G.player.transform; var side = pl.right;
+            switch (s.id)
+            {
+                case "kuchenka":
+                    if (lab.Contains("odced")) { a.Play(ActionAnim.Kind.Przelewa, 0.7f); break; }
+                    var pot = potLid ? potLid.position : (steamPoint ? steamPoint.position - Vector3.up * 0.15f : s.anchor.position);
+                    Vector3 Stir() { float t = Time.time * 4.5f; return pot + Vector3.up * 0.14f + new Vector3(Mathf.Cos(t), 0, Mathf.Sin(t)) * 0.07f; }
+                    a.Hands(Stir, () => pot + Vector3.up * 0.06f - side * 0.17f, 0.7f);
+                    var props = ActionProps.I;
+                    if (props && props.spoon) a.Prop("łyżka", props.spoon, () => a.RightHand, () => Quaternion.FromToRotation(Vector3.up, (a.RightHand - (pot + Vector3.up * 0.02f)).normalized), 0.7f);
+                    break;
+                case "maselnica":
+                    if (churnPlunger) a.Hands(() => churnPlunger.position + Vector3.up * 0.32f + side * 0.04f, () => churnPlunger.position + Vector3.up * 0.32f - side * 0.04f, 0.7f);
+                    break;
+                case "wirowka":
+                    if (separatorCrank) a.Hands(() => separatorCrank.position + separatorCrank.up * 0.11f, () => s.anchor.position + Vector3.up * 0.95f - side * 0.18f, 0.7f);
+                    break;
+                case "prasa":
+                    if (pressPlunger) a.Hands(() => pressPlunger.position + Vector3.up * 0.2f + side * 0.12f, () => pressPlunger.position + Vector3.up * 0.2f - side * 0.12f, 0.7f);
+                    break;
+                default:
+                    a.Play(ActionAnim.Kind.Przelewa, 0.7f); break;
+            }
         }
 
         void Face(Station s)
@@ -212,6 +264,14 @@ namespace Mleczarka.ProductionFloor
             {
                 bool open = _near != null && _near.id == "lodowka";
                 fridgeDoor.localRotation = Quaternion.Slerp(fridgeDoor.localRotation, _doorRot * Quaternion.AngleAxis(open ? -95 : 0, Vector3.up), dt * 5);
+                if (open && !_fridgeWasOpen) { var a = ActionAnim.For(G.player); if (a) { a.Play(ActionAnim.Kind.Otwiera, 1.1f); Face(_near); } }
+                _fridgeWasOpen = open;
+                if (_fridgeLight) _fridgeLight.intensity = Mathf.MoveTowards(_fridgeLight.intensity, open ? 0.9f : 0f, dt * 3f);
+                int bottles = c.fridge < 0.1 ? 0 : Mathf.Clamp(Mathf.CeilToInt((float)(c.fridge / c.fridgeCap * _fridgeMilk.Count)), 1, _fridgeMilk.Count);
+                for (int i = 0; i < _fridgeMilk.Count; i++) _fridgeMilk[i].gameObject.SetActive(i < bottles);
+                int jars = c.cream < 0.05 ? 0 : c.cream < 0.8 ? 1 : 2;
+                for (int i = 0; i < _fridgeCream.Count; i++) _fridgeCream[i].gameObject.SetActive(i < jars);
+                if (_fridgePot) _fridgePot.gameObject.SetActive(CareerSim.JobAt(P, "lodowka") != null);
             }
             for (int i = 0; i < _jars.Count; i++) _jars[i].gameObject.SetActive(i < c.pantry.Sum());
             SpinBike();
@@ -291,7 +351,7 @@ namespace Mleczarka.ProductionFloor
         void StatusBar(float SW)
         {
             var c = P.career;
-            string s = $"Bańka {c.canister:0}/{c.canisterCap:0} l   ·   Lodówka {c.fridge:0}/{c.fridgeCap:0} l   ·   Śmietanka {c.cream:0.0} l   ·   Spiżarka {c.pantry.Sum()}   ·   Koszyk {c.basket.Sum()}/{c.basketCap}" +
+            string s = $"Bańka {CareerSim.L(c.canister)}/{c.canisterCap:0} l   ·   Lodówka {CareerSim.L(c.fridge)}/{c.fridgeCap:0} l   ·   Śmietanka {CareerSim.L(c.cream)} l   ·   Spiżarka {c.pantry.Sum()}   ·   Koszyk {c.basket.Sum()}/{c.basketCap}" +
                        (G.player.OnBike ? "   ·   <color=#7fe0a0>na rowerze</color>" : "") + "   ·   <color=#9fb>K — rozwój</color>";
             float w = Mathf.Min(980, SW - 40), x = (SW - w) / 2, y = 92;
             Fill(new Rect(x, y, w, 34), new Color(0.03f, 0.1f, 0.13f, 0.85f)); Fill(new Rect(x, y, 5, 34), new Color(0.95f, 0.75f, 0.3f));
@@ -302,11 +362,19 @@ namespace Mleczarka.ProductionFloor
         void StationPanel(float SH)
         {
             var s = _near; var job = s.id == "polka" ? null : CareerSim.JobAt(P, s.id);
-            float W = 600, H = 360, x = 16, y = Mathf.Max(140, SH - 150 - H), lx = x + 16, inner = W - 32;
+            int nRec = s.id == "polka" || job != null ? 0 : RecipesAt(s.id).Count();
+            float W = 640, H = (job != null ? 420 : (nRec > 0 ? 350 + nRec * 44 : 360)) + 70, x = 16, y = Mathf.Max(110, SH - 130 - H), lx = x + 16, inner = W - 32;
             Fill(new Rect(x, y, W, H), new Color(0.035f, 0.12f, 0.15f, 0.95f)); Fill(new Rect(x, y, 4, H), new Color(0.95f, 0.75f, 0.3f));
             float yy = y + 10;
             GUI.Label(new Rect(lx, yy, inner, 32), s.title, _title); yy += 36;
             var c = P.career;
+            // podświetlona ramka: co zrobić teraz i jakie są opcje
+            var (todo, opts) = Guide(s, job);
+            Fill(new Rect(lx - 4, yy - 2, inner + 8, 62), new Color(0.98f, 0.82f, 0.35f, 0.95f));
+            var dark = new GUIStyle(_small) { normal = { textColor = new Color(0.12f, 0.1f, 0.05f) } };
+            GUI.Label(new Rect(lx + 4, yy, inner - 8, 24), "<b>Co teraz:</b> " + todo, dark);
+            GUI.Label(new Rect(lx + 4, yy + 30, inner - 8, 24), "<b>Do wyboru:</b> " + opts, dark);
+            yy += 70;
             if (s.id == "polka")
             {
                 GUI.Label(new Rect(lx, yy, inner, 24), "Spiżarka:", _text); yy += 26;
@@ -333,14 +401,19 @@ namespace Mleczarka.ProductionFloor
                     float f = d.Kind == StepKind.Tap ? 0 : (float)(job.progress / need);
                     Fill(new Rect(lx, yy + 6, inner, 8), new Color(0.16f, 0.28f, 0.3f)); Fill(new Rect(lx, yy + 6, inner * Mathf.Clamp01(f), 8), new Color(0.95f, 0.75f, 0.3f));
                     yy += 22;
-                    if (d.Kind == StepKind.Auto) { GUI.Label(new Rect(lx, yy, inner, 22), $"jeszcze ok. {Mathf.CeilToInt((float)(need - job.progress))} s — możesz w tym czasie robić coś innego", _small); yy += 22; }
+                    string now = d.Kind == StepKind.Auto ? $"Krok {job.step + 1}/{r.Steps.Length}: dzieje się samo — jeszcze ok. {GameMin(need - job.progress)} (gotowe ok. {ClockIn(need - job.progress)}). W tym czasie możesz robić coś innego."
+                               : d.Kind == StepKind.Hold ? $"Krok {job.step + 1}/{r.Steps.Length}: przytrzymaj Q jeszcze ok. {Mathf.CeilToInt((float)(need - job.progress))} s ({(int)(100 * f)}%)."
+                               : $"Krok {job.step + 1}/{r.Steps.Length}: naciśnij Q.";
+                    GUI.Label(new Rect(lx, yy, inner, 44), now, _small); yy += 44;
+                    double rest = 0; for (int i = job.step; i < r.Steps.Length; i++) rest += r.Steps[i].Kind == StepKind.Auto ? CareerSim.Need(r.Steps[i], job.qty) - (i == job.step ? job.progress : 0) : 0;
+                    GUI.Label(new Rect(lx, yy, inner, 22), $"Do końca ok. {GameMin(rest)} czasu gry · wynik: {YieldText(r, job.qty)}", _small); yy += 24;
                 }
                 GUI.Label(new Rect(lx, yy + 4, inner, 60), "<color=#9bb>" + r.Info + "</color>", _small);
                 if (GUI.Button(new Rect(lx, y + H - 48, 220, 34), "Obsłuż (Q)")) Primary(true);
                 return;
             }
             var list = RecipesAt(s.id).ToList();
-            GUI.Label(new Rect(lx, yy, inner, 22), $"Lodówka: {c.fridge:0} l mleka · {c.cream:0.0} l śmietanki · partia do {CareerSim.MaxBatch(P)} szt.", _small); yy += 26;
+            GUI.Label(new Rect(lx, yy, inner, 22), $"Lodówka: {CareerSim.L(c.fridge)} l mleka · {CareerSim.L(c.cream)} l śmietanki · garnek: partia do {CareerSim.MaxBatch(P)} szt.", _small); yy += 26;
             for (int i = 0; i < list.Count; i++)
             {
                 var r = list[i];
@@ -354,6 +427,23 @@ namespace Mleczarka.ProductionFloor
             {
                 var sel = list[Mathf.Clamp(_recipe, 0, list.Count - 1)];
                 string block = CareerSim.StartBlock(P, sel, _qty);
+                // szczegóły wybranego przepisu: składniki na partię, kroki z czasem, wynik i opłacalność
+                yy += 4;
+                string have = sel.Milk > 0 ? $"{CareerSim.L(sel.Milk * _qty)} l mleka (masz {CareerSim.L(c.fridge)} l — starczy na {(int)System.Math.Floor((c.fridge + CareerSim.Tolerance) / sel.Milk)} szt.)"
+                                           : $"{CareerSim.L(sel.Cream * _qty)} l śmietanki (masz {CareerSim.L(c.cream)} l — starczy na {(int)System.Math.Floor((c.cream + CareerSim.Tolerance) / System.Math.Max(0.01, sel.Cream))} szt.)";
+                GUI.Label(new Rect(lx, yy, inner, 22), $"<b>Partia ×{_qty}:</b> potrzeba {have}", _small); yy += 22;
+                double total = 0;
+                for (int i = 0; i < sel.Steps.Length; i++)
+                {
+                    var d = sel.Steps[i]; double n = CareerSim.Need(d, _qty);
+                    string how = d.Kind == StepKind.Hold ? $"przytrzymaj Q ok. {Mathf.CeilToInt((float)n)} s" : d.Kind == StepKind.Auto ? $"samo, ok. {GameMin(n)} gry" : "naciśnij Q";
+                    if (d.Kind == StepKind.Auto) total += n;
+                    GUI.Label(new Rect(lx, yy, inner, 20), $"  {i + 1}. {d.Label} — <color=#9fb>{how}</color>", _small); yy += 20;
+                }
+                double milkCost = sel.Milk * _qty * CheapestMilk();
+                string value = sel.Product < 0 ? "" : $" · na rynku ok. {Money.Zl(CareerSim.StallPrice(P, (Product)sel.Product) * _qty)} zł" + (sel.Milk > 0 ? $" (mleko kupione kosztowałoby ok. {Money.Zl(milkCost)} zł)" : "");
+                GUI.Label(new Rect(lx, yy, inner, 42), $"Czekanie ok. {GameMin(total)} (gotowe ok. {ClockIn(total)}) → {YieldText(sel, _qty)}{value}", _small); yy += 42;
+                GUI.Label(new Rect(lx, yy, inner, 40), "<color=#9bb>" + sel.Info + "</color>", _small);
                 if (GUI.Button(new Rect(lx, y + H - 48, 40, 34), "−")) _qty = Mathf.Max(1, _qty - 1);
                 GUI.Label(new Rect(lx + 48, y + H - 44, 160, 30), $"Partia: {_qty}", _text);
                 if (GUI.Button(new Rect(lx + 170, y + H - 48, 40, 34), "+")) _qty = Mathf.Min(CareerSim.MaxBatch(P), _qty + 1);
@@ -361,6 +451,57 @@ namespace Mleczarka.ProductionFloor
                 if (block != "") GUI.Label(new Rect(lx, y + H - 76, inner, 24), "<color=#ffb070>" + block + "</color>", _small);
             }
         }
+
+        /// <summary>Podpowiedź na górze panelu: następny krok (z wyjaśnieniem, czego brakuje) i dostępne klawisze.</summary>
+        (string todo, string opts) Guide(Station s, KitchenJob job)
+        {
+            var c = P.career;
+            if (s.id == "polka")
+                return (c.pantry.Sum() > 0 ? $"zapakuj {c.pantry.Sum()} szt. ze spiżarki do koszyka roweru i jedź na rynek." : "spiżarka jest pusta — najpierw coś ugotuj przy kuchni albo stole.",
+                        "Q albo F — do koszyka · B — rower · M — mapa");
+            if (job != null)
+            {
+                var r = CareerData.R(job.recipe);
+                if (job.Done) return ("gotowe — odbierz.", "Q");
+                var d = r.Steps[job.step];
+                string todo = d.Kind == StepKind.Hold ? $"przytrzymaj Q — {d.Label.ToLowerInvariant()}." : d.Kind == StepKind.Tap ? $"naciśnij Q — {d.Label.ToLowerInvariant()}." : $"{d.Label.ToLowerInvariant()} — trwa samo, możesz odejść i zająć się czymś innym.";
+                return (todo, d.Kind == StepKind.Auto ? "odejdź i wróć później · K — rozwój · M — mapa" : (d.Kind == StepKind.Hold ? "przytrzymaj Q" : "Q") + " · odejdź, żeby przerwać na chwilę");
+            }
+            var list = RecipesAt(s.id).ToList();
+            if (list.Count == 0) return ("tu nic się teraz nie robi.", "odejdź");
+            var sel = list[Mathf.Clamp(_recipe, 0, list.Count - 1)];
+            string opts2 = (list.Count > 1 ? $"1–{list.Count} przepis · " : "") + $"− / + partia (1–{CareerSim.MaxBatch(P)}) · Q zacznij · K rozwój";
+            string block = CareerSim.StartBlock(P, sel, _qty);
+            if (block == "") return ($"naciśnij Q — zacznij: {sel.Name} ×{_qty}.", opts2);
+            if (sel.Needs != null && !c.owned.Contains(sel.Needs)) return (block, opts2);
+            if (block.StartsWith("To stanowisko")) return ("to stanowisko jest zajęte — poczekaj, aż skończy się poprzednia partia.", opts2);
+            if (sel.Milk > 0 && sel.Milk * _qty > c.fridge + CareerSim.Tolerance)
+            {
+                int fit = (int)System.Math.Floor((c.fridge + CareerSim.Tolerance) / sel.Milk);
+                if (fit >= 1) return ($"mleka starczy na {fit} szt. — zmniejsz partię (−) do {fit} albo dolej mleka do lodówki.", opts2);
+                return (c.canister >= 1 ? "przelej mleko z bańki do lodówki (F w domu, poza sprzętem)." : "brakuje mleka — wydój Krasulę na pastwisku za domem albo kup mleko w gospodarstwie (M — mapa).", opts2);
+            }
+            if (sel.Cream > 0 && sel.Cream * _qty > c.cream + CareerSim.Tolerance)
+                return ("brakuje śmietanki — zbierz ją z mleka w lodówce (przepis „Zbieranie śmietanki”).", opts2);
+            return (block, opts2);
+        }
+
+        /// <summary>Sekundy symulacji jako czas gry (1 s = 1 minuta gry).</summary>
+        static string GameMin(double sec)
+        {
+            int m = Mathf.Max(1, Mathf.CeilToInt((float)(sec * 1440.0 / GameConfig.DaySeconds)));
+            return m >= 60 ? $"{m / 60} godz. {m % 60} min" : $"{m} min";
+        }
+        string ClockIn(double sec)
+        {
+            double h = GameConfig.StartHour + (G.Sim.S.t + sec) / (GameConfig.DaySeconds / 24.0);
+            int hh = (int)System.Math.Floor(h % 24), mm = (int)System.Math.Floor(h % 1 * 60);
+            return $"{hh:00}:{mm:00}";
+        }
+        static string YieldText(Recipe r, int qty) => r.Product < 0
+            ? $"{CareerSim.L(r.CreamOut * qty)} l śmietanki + {CareerSim.L((r.Milk - r.CreamOut) * qty)} l chudego mleka z powrotem do lodówki"
+            : $"{qty} × {GameData.P((Product)r.Product).Name} do spiżarki";
+        double CheapestMilk() => G.Sim.S.farms.Count == 0 ? 0 : G.Sim.S.farms.Min(f => f.price) * CareerData.MilkPriceFactor;
 
         void ShopPanel(float SW, float SH)
         {

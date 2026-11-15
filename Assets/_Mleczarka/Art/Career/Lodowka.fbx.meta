@@ -7,13 +7,38 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: Aluminium
+    second: {fileID: 2100000, guid: 35173a7608f78bb4e90272095531ee5b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: Chrom
     second: {fileID: 2100000, guid: f39bd321211eb144a9d0c564c93c9b2e, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: Emalia_Biala
+    second: {fileID: 2100000, guid: dddcf880feba1a348b8432431f559cfa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: Emalia_Kremowa
     second: {fileID: 2100000, guid: 4c6c588d1d8e5c244a784c1b864ce96e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Lampka_Lodowki
+    second: {fileID: 2100000, guid: 76587403c0ac8f647b38b43b83de54e2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Mleko_Bialy
+    second: {fileID: 2100000, guid: d266716e2a1fed74e9f1217a002aa0ae, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Szklo_Sloik
+    second: {fileID: 2100000, guid: df324e2f04216f744aa9c4e7c55b942e, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

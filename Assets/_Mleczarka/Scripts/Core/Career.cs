@@ -136,6 +136,15 @@ namespace Mleczarka.Core
         public static bool Allowed(PlayerState p, string id) => !Active(p) || p.career.owned.Contains(id);
         public static string LockedText(string id) { var i = CareerData.Item(id); return i == null ? "Zablokowane." : $"Najpierw kup: {i.Name} ({Money.Zl(i.Price)} zł) — K: rozwój."; }
 
+        /// <summary>Litry do pokazania graczowi: do 0,1 l, bez „,0” dla pełnych. Zgodne z tolerancją: co pokazuje się jako 3 l, wystarcza na 3 l.</summary>
+        public static string L(double v)
+        {
+            double f = Math.Round(v * 10, MidpointRounding.AwayFromZero) / 10;
+            return Math.Abs(f - Math.Round(f)) < 1e-6 ? $"{Math.Round(f):0}" : $"{f:0.0}";
+        }
+        /// <summary>Drobne resztki z przelewania (np. 2,97 l zamiast 3 l) nie blokują gotowania.</summary>
+        public const double Tolerance = 0.05;
+
         public static int MaxBatch(PlayerState p) => p.career.owned.Contains("garnek_duzy") ? CareerData.BigPot : CareerData.SmallPot;
 
         public static void Ensure(PlayerState p)
@@ -209,7 +218,7 @@ namespace Mleczarka.Core
         }
 
         /// <summary>Własna krowa na działce przy domu: mleko za darmo — najpierw do lodówki, resztę do bańki.</summary>
-        public static Result MilkOwnCow(Simulation sim, int pid, bool atCow = false)
+        public static Result MilkOwnCow(Simulation sim, int pid, bool atCow = false, double maxLiters = 1e9)
         {
             var p = sim.S.players[pid]; var c = p.career;
             if (!Active(p)) return Result.Fail("Tylko w karierze.");
@@ -220,11 +229,12 @@ namespace Mleczarka.Core
                 double h = (1 - c.cowMilk) / CareerData.LitersPerCow * 24;
                 return Result.Fail($"Krowa jest wydojona. Następny litr za ok. {Math.Max(1, Math.Ceiling(h)):0} godz.");
             }
-            double toFridge = Math.Min(avail, Math.Floor(c.fridgeCap - c.fridge));
-            double toCan = Math.Min(avail - toFridge, Math.Floor(c.canisterCap - c.canister));
+            avail = Math.Min(avail, Math.Max(1, Math.Floor(maxLiters)));
+            double toFridge = Math.Min(avail, Math.Floor(c.fridgeCap - c.fridge + 1e-6));
+            double toCan = Math.Min(avail - toFridge, Math.Floor(c.canisterCap - c.canister + 1e-6));
             if (toFridge + toCan < 1) return Result.Fail("Lodówka i bańka są pełne — najpierw zrób coś z mleka.");
             c.fridge += toFridge; c.canister += toCan; c.cowMilk = Math.Max(0, c.cowMilk - toFridge - toCan);
-            string where = toCan > 0 ? $"{toFridge:0} l do lodówki, {toCan:0} l do bańki" : $"do lodówki ({c.fridge:0}/{c.fridgeCap:0} l)";
+            string where = toCan > 0 ? $"{toFridge:0} l do lodówki, {toCan:0} l do bańki" : $"do lodówki ({L(c.fridge)}/{c.fridgeCap:0} l)";
             return Result.Success($"Wydojono {toFridge + toCan:0} l od własnej krowy — za darmo, {where}.");
         }
 
@@ -237,7 +247,7 @@ namespace Mleczarka.Core
             if (room < 1) return Result.Fail("Lodówka jest pełna.");
             double l = Math.Min(room, c.canister);
             c.canister -= l; c.fridge += l;
-            return Result.Success($"Przelano {l:0} l do lodówki ({c.fridge:0}/{c.fridgeCap:0} l).");
+            return Result.Success($"Przelano {L(l)} l do lodówki ({L(c.fridge)}/{c.fridgeCap:0} l).");
         }
 
         public static string StartBlock(PlayerState p, Recipe r, int qty)
@@ -246,8 +256,8 @@ namespace Mleczarka.Core
             if (r.Needs != null && !c.owned.Contains(r.Needs)) return LockedText(r.Needs);
             if (c.jobs.Any(j => CareerData.R(j.recipe).Station == r.Station)) return "To stanowisko jest zajęte.";
             if (qty < 1 || qty > MaxBatch(p)) return $"Partia: 1–{MaxBatch(p)} szt.";
-            if (r.Milk * qty > c.fridge + 1e-6) return $"Brakuje mleka w lodówce: potrzeba {r.Milk * qty:0} l, jest {c.fridge:0} l.";
-            if (r.Cream * qty > c.cream + 1e-6) return $"Brakuje śmietanki: potrzeba {r.Cream * qty:0.0} l, jest {c.cream:0.0} l.";
+            if (r.Milk * qty > c.fridge + Tolerance) return $"Brakuje mleka w lodówce: potrzeba {L(r.Milk * qty)} l, jest {L(c.fridge)} l" + (r.Milk > 0 && c.fridge >= r.Milk - Tolerance ? $" — starczy na {(int)Math.Floor((c.fridge + Tolerance) / r.Milk)} szt." : ".");
+            if (r.Cream * qty > c.cream + Tolerance) return $"Brakuje śmietanki: potrzeba {L(r.Cream * qty)} l, jest {L(c.cream)} l" + (r.Cream > 0 && c.cream >= r.Cream - Tolerance ? $" — starczy na {(int)Math.Floor((c.cream + Tolerance) / r.Cream)} szt." : ".");
             return "";
         }
 
@@ -257,7 +267,7 @@ namespace Mleczarka.Core
             if (r == null) return Result.Fail("Nie ma takiego przepisu.");
             if (!sim.IsAtPlace(pid, PlaceKind.Dom)) return Result.Fail("Gotuje się w letniej kuchni.");
             string why = StartBlock(p, r, qty); if (why != "") return Result.Fail(why);
-            c.fridge -= r.Milk * qty; c.cream -= r.Cream * qty;
+            c.fridge = Math.Max(0, c.fridge - r.Milk * qty); c.cream = Math.Max(0, c.cream - r.Cream * qty);
             c.jobs.Add(new KitchenJob { id = c.nextJob++, recipe = recipe, qty = qty });
             return Result.Success($"{r.Name} ×{qty}: {r.Steps[0].Label}" + (r.Steps[0].Kind == StepKind.Hold ? " (przytrzymaj Q)." : " (Q)."));
         }
@@ -442,7 +452,7 @@ namespace Mleczarka.Core
 
     // ---------------- komendy kariery ----------------
     public sealed class BuyMilkCan : Cmd { public readonly int Farm; public BuyMilkCan(int pid, int f) : base(pid) { Farm = f; } public override Result Execute(Simulation s) => CareerSim.BuyMilk(s, PlayerId, Farm); }
-    public sealed class MilkOwnCow : Cmd { public readonly bool AtCow; public MilkOwnCow(int pid, bool atCow = false) : base(pid) { AtCow = atCow; } public override Result Execute(Simulation s) => CareerSim.MilkOwnCow(s, PlayerId, AtCow); }
+    public sealed class MilkOwnCow : Cmd { public readonly bool AtCow; public readonly double MaxLiters; public MilkOwnCow(int pid, bool atCow = false, double maxLiters = 1e9) : base(pid) { AtCow = atCow; MaxLiters = maxLiters; } public override Result Execute(Simulation s) => CareerSim.MilkOwnCow(s, PlayerId, AtCow, MaxLiters); }
     public sealed class PourMilk : Cmd { public PourMilk(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.PourToFridge(s, PlayerId); }
     public sealed class StartKitchen : Cmd { public readonly string Recipe; public readonly int Qty; public StartKitchen(int pid, string r, int q) : base(pid) { Recipe = r; Qty = q; } public override Result Execute(Simulation s) => CareerSim.StartJob(s, PlayerId, Recipe, Qty); }
     public sealed class KitchenAct : Cmd { public readonly string Station; public KitchenAct(int pid, string st) : base(pid) { Station = st; } public override Result Execute(Simulation s) => CareerSim.Act(s, PlayerId, Station); }

@@ -128,6 +128,7 @@ namespace Mleczarka.EditorTools
                 new Spec { name = "Mleko_Bialy", color = new Color(0.97f, 0.97f, 0.95f), smoothness = 0.5f },
                 new Spec { name = "Twarog_Bialy", color = new Color(0.96f, 0.95f, 0.90f), smoothness = 0.2f },
                 new Spec { name = "Maslo_Zolte", color = new Color(0.98f, 0.88f, 0.48f), smoothness = 0.45f },
+                new Spec { name = "Lampka_Lodowki", color = new Color(1.0f, 0.95f, 0.8f), smoothness = 0.8f, emission = new Color(1.0f, 0.86f, 0.55f) },
                 // Maszyny mleczarni (własne modele z Blendera)
                 new Spec { name = "Stal_Nierdzewna", color = new Color(0.80f, 0.82f, 0.85f), smoothness = 0.72f, metallic = 0.85f },
                 new Spec { name = "Stal_Rama", color = new Color(0.30f, 0.36f, 0.44f), smoothness = 0.5f, metallic = 0.6f },

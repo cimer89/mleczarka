@@ -180822,6 +180822,52 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.6459351, y: 1.4820013, z: 0.69348145}
   m_Center: {x: -0.0000000030587834, y: 0.7800007, z: -0.034988403}
+--- !u!1 &770392496
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 770392498}
+  - component: {fileID: 770392497}
+  m_Layer: 0
+  m_Name: "Rekwizyty czynno\u015Bci"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &770392497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 770392496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcd2cd0c1b1b06249abdfddf52c1f76e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mleczarka.Runtime::Mleczarka.Player.ActionProps
+  bucket: {fileID: 919132149155446097, guid: 60b6dc685edc9014f977d5ac2a058507, type: 3}
+  spoon: {fileID: 919132149155446097, guid: 801dcdb113d685e4eb058d929d2a9938, type: 3}
+--- !u!4 &770392498
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 770392496}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &770720504
 GameObject:
   m_ObjectHideFlags: 0
@@ -521846,3 +521892,4 @@ SceneRoots:
   - {fileID: 2143888277}
   - {fileID: 784173477}
   - {fileID: 71354404}
+  - {fileID: 770392498}

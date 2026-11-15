@@ -53,7 +53,12 @@ namespace Mleczarka.Player
         {
             ikCalls++;
             ikStatus = $"warstwa {layer}, humanoid {(_anim ? _anim.isHuman : false)}, na rowerze {(_rider ? _rider.OnBike : false)}, rower {(bool)_bike}, korba {(_rider && _rider.BikeCrankTransform)}, chwyty {_hasGrips}";
-            if (layer != 0 || !_anim || !_rider || !_rider.OnBike || !_bike) { Clear(); return; }
+            if (layer != 0 || !_anim || !_rider || !_rider.OnBike || !_bike)
+            {
+                // dłonie prowadzi wtedy ActionAnim (mieszanie, dojenie) — nie zerujemy jego wag
+                var act = GetComponent<ActionAnim>(); if (act && act.IKActive) return;
+                Clear(); return;
+            }
             var crank = _rider.BikeCrankTransform;
             if (crank)
             {

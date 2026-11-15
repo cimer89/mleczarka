@@ -18,7 +18,7 @@ namespace Mleczarka.EditorTools
         public static void Run()
         {
             _log = new StringBuilder(); _ok = _bad = 0;
-            try { Loop(); Locks(); Migration(); HandSale(); Institutions(); Cows(); }
+            try { Loop(); Locks(); Migration(); HandSale(); Institutions(); Cows(); Rounding(); }
             catch (System.Exception e) { _bad++; _log.AppendLine("WYJĄTEK " + e); }
             Directory.CreateDirectory("Screenshots"); File.WriteAllText("Screenshots/testy_kariery.txt", _log.ToString());
             Debug.Log($"[Mleczarka] Testy kariery: {_ok} OK, {_bad} błędów.");
@@ -92,6 +92,30 @@ namespace Mleczarka.EditorTools
             Check(CareerSim.Allowed(p, "skrzydlo"), "pełna ścieżka do skrzydła maszyn");
             S.t = 1; for (int i = 0; i < 2000; i++) sim.Tick(0.25);
             Check(S.orders.Count > 0, "z dostawczakiem pojawiają się zamówienia");
+        }
+
+        static void Rounding()
+        {
+            _log.AppendLine("Zaokrąglenia i dojenie po litrze:");
+            var w = new World(); var S = Simulation.NewGame(GameMode.Kariera, 7); var sim = new Simulation(S, w); var p = S.players[0]; var c = p.career;
+            w.place = new Place(PlaceKind.Dom);
+            c.fridge = 2.97; var tw = CareerData.R("twarog");
+            Check(CareerSim.StartBlock(p, tw, 1) == "", "2,97 l w lodówce wystarcza na twaróg (3 l) — drobna resztka nie blokuje");
+            var r = new StartKitchen(0, "twarog", 1).Execute(sim);
+            Check(r.Ok && c.fridge == 0, $"start twarogu z 2,97 l: {r.Msg}, w lodówce {c.fridge}");
+            c.fridge = 2.9; c.jobs.Clear();
+            string b = CareerSim.StartBlock(p, tw, 1);
+            Check(b.Contains("jest 2,9 l") || b.Contains("jest 2.9 l"), "brak 0,1 l pokazuje prawdziwą ilość: " + b);
+            Check(CareerSim.L(2.96) == "3" && (CareerSim.L(2.9) is "2,9" or "2.9"), "2,96 l (wystarcza na 3 l) pokazuje się jako 3 l, a 2,9 l jako 2,9 l: " + CareerSim.L(2.96));
+            Check(CareerSim.L(3.0) == "3" && CareerSim.L(0.5) is "0,5" or "0.5", "3 l i 0,5 l bez zbędnych zer");
+            c.fridge = 6; c.jobs.Clear();
+            b = CareerSim.StartBlock(p, tw, 2) ;
+            Check(b == "", "6 l: twaróg ×2 możliwy");
+            c.fridge = 5; b = CareerSim.StartBlock(p, tw, 2);
+            Check(b.Contains("starczy na 1 szt."), "5 l przy partii ×2: podpowiedź, na ile starczy: " + b);
+            c.fridge = 0; c.canister = 0; c.cowMilk = 20;
+            var m = new MilkOwnCow(0, true, 1).Execute(sim);
+            Check(m.Ok && c.fridge == 1 && System.Math.Abs(c.cowMilk - 19) < 1e-6, "dojenie przytrzymaniem: 1 l na porcję");
         }
 
         static void Cows()
