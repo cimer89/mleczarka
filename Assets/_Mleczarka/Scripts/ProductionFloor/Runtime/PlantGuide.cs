@@ -72,7 +72,12 @@ namespace Mleczarka.ProductionFloor
             }
 
             if (P.carried.Sum() > 0)
-                _tasks.Add(new Task { view = K(PlantMachineView.Kind.ColdRoom), kind = Kind.Pick, text = "Zanieś skrzynkę do chłodni (Q przy drzwiach)", order = 3 });
+            {
+                bool cold = Enumerable.Range(0, GameData.ProductCount).Any(i => P.carried[i] > 0 && GameData.P((Product)i).NeedsCold);
+                _tasks.Add(new Task { view = K(PlantMachineView.Kind.ColdRoom), kind = Kind.Pick, text = cold || P.carriedFromStore
+                    ? (P.carriedFromStore ? "Zanieś skrzynkę do dostawczaka (Q przy dostawczaku) albo odłóż do chłodni" : "Zanieś skrzynkę do chłodni (Q przy drzwiach) — ten produkt wymaga schłodzenia")
+                    : "Ten produkt nie wymaga chłodzenia — zanieś skrzynkę od razu do dostawczaka (Q przy dostawczaku) albo do chłodni", order = 3 });
+            }
             else if (P.packingRack.Sum() > 0)
                 _tasks.Add(new Task { view = V("pakowarka"), kind = Kind.Pick, text = $"Gotowe: {P.packingRack.Sum()} szt. — odbierz skrzynkę przy pakowarce (Q)", order = 3 });
 

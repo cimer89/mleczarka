@@ -31,7 +31,10 @@ namespace Mleczarka.ProductionFloor
             Check(p.batches.Count == 0 && p.packingRack[0] == 4 && p.store[0] == 0, "pakowanie tworzy towar do odbioru");
             Check(ProductionLogistics.Pick(p, Product.Uht, true).Ok && p.carried[0] == 4 && p.packingRack[0] == 0, "podniesienie skrzynki");
             Check(!ProductionLogistics.Pick(p, Product.Uht, true).Ok && p.carried[0] == 4, "brak duplikacji przy podnoszeniu");
-            Check(!ProductionLogistics.PutInVan(p).Ok && p.carried[0] == 4, "wymagane przejście przez magazyn");
+            p.carried[0] = 0; p.carried[1] = 4;
+            Check(!ProductionLogistics.PutInVan(p).Ok && p.carried[1] == 4, "jogurt wymaga chłodni przed wysyłką");
+            p.carried[1] = 0; p.carried[0] = 4;
+            { int vc = p.vanCargo[0]; Check(ProductionLogistics.PutInVan(p).Ok && p.vanCargo[0] == vc + 4 && p.carried.Sum() == 0, "UHT od razu do dostawczaka"); p.vanCargo[0] = vc; p.carried[0] = 4; p.carriedFromStore = false; }
             Check(ProductionLogistics.PutInStore(p).Ok && p.store[0] == 4 && p.carried.Sum() == 0, "odłożenie do magazynu");
             Check(!ProductionLogistics.PutInStore(p).Ok && p.store[0] == 4, "brak podwójnego odłożenia");
             Check(!sim.LoadVan(0).Ok && p.store[0] == 4, "zakaz automatycznego załadunku");

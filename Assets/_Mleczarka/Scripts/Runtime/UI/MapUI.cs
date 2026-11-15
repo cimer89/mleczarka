@@ -114,6 +114,8 @@ namespace Mleczarka.UI
         {
             if (p.kind == PlaceKind.Mleczarnia) return Brand;
             if (p.kind == PlaceKind.Rynek) return new Color(0.95f, 0.6f, 0.1f);
+            if (p.kind == PlaceKind.Placowka) return new Color(0.55f, 0.35f, 0.85f);
+            if (p.kind == PlaceKind.Dom) return new Color(0.85f, 0.75f, 0.2f);
             if (!G || p.farmId < 0 || p.farmId >= G.Sim.S.farms.Count) return Color.white;
             int o = G.Sim.S.farms[p.farmId].owner;
             return o == GameController.Me ? Good : o == 1 ? Bad : Color.white;
@@ -146,6 +148,14 @@ namespace Mleczarka.UI
             }
             if (v && p.vehicle == VehicleKind.Dostawczak)
             {
+                // zamówienie z placówki, na które masz towar w dostawczaku — jedź prosto do odbiorcy
+                foreach (var o in G.Sim.ClaimedBy(GameController.Me))
+                {
+                    if (!Simulation.CanDeliver(p, o)) continue;
+                    int ci = Simulation.ClientIndex(o.client);
+                    var pl = WorldPlace.All.Where(w => w && w.kind == PlaceKind.Placowka && w.farmId == ci).OrderBy(w => (w.transform.position - pos).sqrMagnitude).FirstOrDefault();
+                    if (pl) return (pl, $"Zamówienie: {o.client}");
+                }
                 if (p.vanCargo.Sum() > 0) return (Find(PlaceKind.Rynek), "Towar na rynek");
                 if (p.store.Sum() > 0) return (Find(PlaceKind.Mleczarnia), "Odbierz towar z mleczarni");
             }

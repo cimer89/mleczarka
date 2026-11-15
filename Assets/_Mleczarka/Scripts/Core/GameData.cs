@@ -8,6 +8,8 @@ namespace Mleczarka.Core
     public sealed class ProductDef
     {
         public Product Id; public string Name, Unit; public int MilkPerUnit; public double Price; public bool Ready; public int MaxBatch;
+        /// <summary>Wymaga schłodzenia w chłodni przed wysyłką (UHT i dojrzały ser — nie, można od razu do dostawczaka).</summary>
+        public bool NeedsCold = true;
         public int CreamPerUnit;            // śmietanka z wirówki (śmietana, masło) zamiast mleka
         public double IngredientCost;       // kultury, podpuszczka, opakowania na partię (zł za sztukę)
     }
@@ -34,10 +36,10 @@ namespace Mleczarka.Core
 
         public static readonly ProductDef[] Products =
         {
-            new ProductDef { Id = Product.Uht, Name = "Mleko UHT", Unit = "karton", MilkPerUnit = 1, Price = 4.5, Ready = true, MaxBatch = 10, IngredientCost = 0.2 },
+            new ProductDef { Id = Product.Uht, Name = "Mleko UHT", Unit = "karton", MilkPerUnit = 1, Price = 4.5, Ready = true, NeedsCold = false, MaxBatch = 10, IngredientCost = 0.2 },
             new ProductDef { Id = Product.Jogurt, Name = "Jogurt", Unit = "zgrzewka", MilkPerUnit = 2, Price = 12, Ready = true, MaxBatch = 6, IngredientCost = 0.8 },
             new ProductDef { Id = Product.Maslo, Name = "Masło", Unit = "zgrzewka kostek", MilkPerUnit = 0, CreamPerUnit = 3, Price = 30, Ready = true, MaxBatch = 4, IngredientCost = 0.6 },
-            new ProductDef { Id = Product.Ser, Name = "Ser żółty", Unit = "krążek", MilkPerUnit = 5, Price = 42, Ready = true, MaxBatch = 4, IngredientCost = 1.5 },
+            new ProductDef { Id = Product.Ser, Name = "Ser żółty", Unit = "krążek", MilkPerUnit = 5, Price = 42, Ready = true, NeedsCold = false, MaxBatch = 4, IngredientCost = 1.5 },
             new ProductDef { Id = Product.MlekoPast, Name = "Mleko świeże", Unit = "karton", MilkPerUnit = 1, Price = 4, Ready = true, MaxBatch = 10, IngredientCost = 0.2 },
             new ProductDef { Id = Product.Kefir, Name = "Kefir", Unit = "zgrzewka", MilkPerUnit = 2, Price = 11, Ready = true, MaxBatch = 6, IngredientCost = 0.8 },
             new ProductDef { Id = Product.Smietana, Name = "Śmietana", Unit = "zgrzewka", MilkPerUnit = 0, CreamPerUnit = 1, Price = 9, Ready = true, MaxBatch = 6, IngredientCost = 0.5 },

@@ -60,6 +60,8 @@ namespace Mleczarka.Core
         public int[] packingRack = new int[GameData.ProductCount];
         public int[] carried = new int[GameData.ProductCount];
         public bool carriedFromStore;
+        /// <summary>Zamówienie niesione w skrzynce z dostawczaka do odbiorcy (placówka); -1 = brak.</summary>
+        public int carriedOrder = -1;
         // Pełny ciąg maszyn (nowa hala). Gdy włączony, zastępuje uproszczone partie (batches).
         public PlantState plant = new PlantState();
         public double tankerQuality = 1;      // jakość mleka w cysternie (średnia z gospodarstw)

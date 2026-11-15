@@ -25,6 +25,7 @@ namespace Mleczarka.Core
         public List<string> owned = new List<string>();
         public List<KitchenJob> jobs = new List<KitchenJob>();
         public int nextJob;
+        public int hand = -1;                          // produkt trzymany w dłoniach (sprzedaż z ręki klientowi), -1 = nic
         public double sold;                            // zarobek ze straganu (statystyka)
         public int unitsSold;
     }
@@ -308,6 +309,42 @@ namespace Mleczarka.Core
             return Result.Success($"Sprzedano {n} szt. za {Money.Zl(total)} zł.");
         }
 
+        // ---------- sprzedaż z ręki ----------
+
+        /// <summary>Bierze jedną sztukę z koszyka roweru do rąk.</summary>
+        public static Result TakeFromBasket(Simulation sim, int pid, Product pr)
+        {
+            var p = sim.S.players[pid]; var c = p.career;
+            if (!Active(p)) return Result.Fail("Tylko w karierze.");
+            if (c.hand >= 0) return Result.Fail("Masz już towar w rękach — podaj go klientowi albo odłóż (F przy koszyku).");
+            if (c.basket[(int)pr] <= 0) return Result.Fail($"W koszyku nie ma: {GameData.P(pr).Name}.");
+            c.basket[(int)pr]--; c.hand = (int)pr;
+            return Result.Success($"W rękach: {GameData.P(pr).Name}. Podejdź do klienta i naciśnij F.");
+        }
+
+        /// <summary>Odkłada towar z rąk z powrotem do koszyka.</summary>
+        public static Result ReturnHand(Simulation sim, int pid)
+        {
+            var c = sim.S.players[pid].career;
+            if (c.hand < 0) return Result.Fail("Nic nie trzymasz.");
+            c.basket[c.hand]++; c.hand = -1;
+            return Result.Success("Odłożono do koszyka.");
+        }
+
+        /// <summary>Podanie towaru klientowi na rynku: płaci cenę straganu z dopłatą za obsługę, jeśli dostał to, czego chciał.</summary>
+        public static Result HandSell(Simulation sim, int pid, Product wanted)
+        {
+            var p = sim.S.players[pid]; var c = p.career;
+            if (!sim.IsAtPlace(pid, PlaceKind.Rynek)) return Result.Fail("Klienci czekają na rynku.");
+            if (c.hand < 0) return Result.Fail("Najpierw weź towar z koszyka (F przy rowerze).");
+            if (c.hand != (int)wanted) return Result.Fail($"Klient chce: {GameData.P(wanted).Name}, a nie {GameData.P((Product)c.hand).Name}.");
+            double price = Money.M2(StallPrice(p, wanted) * 1.1);
+            c.hand = -1; c.demand[(int)wanted] = Math.Max(0.35, c.demand[(int)wanted] * 0.93);
+            p.money = Money.M2(p.money + price); p.earned += price; c.sold += price; c.unitsSold++;
+            sim.EmitEvent("handSold", p.id, (int)wanted, price, GameData.P(wanted).Name);
+            return Result.Success($"Sprzedano: {GameData.P(wanted).Name} za {Money.Zl(price)} zł.");
+        }
+
         public static Result Buy(Simulation sim, int pid, string id)
         {
             var p = sim.S.players[pid]; var c = p.career; var it = CareerData.Item(id);
@@ -371,6 +408,9 @@ namespace Mleczarka.Core
     public sealed class StartKitchen : Cmd { public readonly string Recipe; public readonly int Qty; public StartKitchen(int pid, string r, int q) : base(pid) { Recipe = r; Qty = q; } public override Result Execute(Simulation s) => CareerSim.StartJob(s, PlayerId, Recipe, Qty); }
     public sealed class KitchenAct : Cmd { public readonly string Station; public KitchenAct(int pid, string st) : base(pid) { Station = st; } public override Result Execute(Simulation s) => CareerSim.Act(s, PlayerId, Station); }
     public sealed class LoadBasket : Cmd { public LoadBasket(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.LoadBasket(s, PlayerId); }
+    public sealed class TakeFromBasket : Cmd { public readonly Product Pr; public TakeFromBasket(int pid, Product pr) : base(pid) { Pr = pr; } public override Result Execute(Simulation s) => CareerSim.TakeFromBasket(s, PlayerId, Pr); }
+    public sealed class ReturnHand : Cmd { public ReturnHand(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.ReturnHand(s, PlayerId); }
+    public sealed class HandSell : Cmd { public readonly Product Wanted; public HandSell(int pid, Product w) : base(pid) { Wanted = w; } public override Result Execute(Simulation s) => CareerSim.HandSell(s, PlayerId, Wanted); }
     public sealed class SellBasket : Cmd { public SellBasket(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.SellBasket(s, PlayerId); }
     public sealed class BuyCareerItem : Cmd { public readonly string Id; public BuyCareerItem(int pid, string id) : base(pid) { Id = id; } public override Result Execute(Simulation s) => CareerSim.Buy(s, PlayerId, Id); }
     public sealed class UnloadTankerHome : Cmd { public UnloadTankerHome(int pid) : base(pid) { } public override Result Execute(Simulation s) => CareerSim.UnloadTankerHome(s, PlayerId); }

@@ -41,7 +41,11 @@ namespace Mleczarka.Core
             if (p == null || !p.manualHandling || p.carried == null) return Result.Fail("Brak trybu pracy w hali.");
             int qty = p.carried.Sum();
             if (qty <= 0) return Result.Fail("Weź skrzynkę z magazynu.");
-            if (!p.carriedFromStore) return Result.Fail("Najpierw odłóż gotowe produkty do magazynu.");
+            // produkty bez chłodzenia (UHT, ser dojrzały) można zanieść od razu z pakowania do dostawczaka
+            if (!p.carriedFromStore)
+                for (int i = 0; i < GameData.ProductCount; i++)
+                    if (p.carried[i] > 0 && GameData.P((Product)i).NeedsCold)
+                        return Result.Fail(GameData.P((Product)i).Name + " musi najpierw trafić do chłodni (magazyn).");
             if (p.vanCargo.Sum() + qty > p.vanCap) return Result.Fail("Skrzynka nie mieści się w dostawczaku. Zwolnij miejsce.");
             for (int i = 0; i < GameData.ProductCount; i++) { p.vanCargo[i] += p.carried[i]; p.carried[i] = 0; }
             p.carriedFromStore = false;

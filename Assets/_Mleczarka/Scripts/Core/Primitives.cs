@@ -22,7 +22,7 @@ namespace Mleczarka.Core
     }
 
     /// <summary>Gdzie stoi pojazd gracza. Dostarcza świat gry (strefy w scenie); symulacja tylko to sprawdza.</summary>
-    public enum PlaceKind { Brak = 0, Gospodarstwo = 1, Mleczarnia = 2, Rynek = 3, Dom = 4 }
+    public enum PlaceKind { Brak = 0, Gospodarstwo = 1, Mleczarnia = 2, Rynek = 3, Dom = 4, Placowka = 5 }
     public readonly struct Place
     {
         public readonly PlaceKind Kind; public readonly int FarmId;

@@ -1,3 +1,11 @@
+# STAN NA 2026-11-15, 10:15 — sprzedaż z ręki, placówki, rower z koszykiem (Claude)
+
+- **Rower:** wiklinowy koszyk z mocowaniem (pręty do piasty, obejmy przy kierownicy) zamiast lewitującego kartonu — model w Blender/Kariera_Kuchnia.blend → Art/Career/Rower.fbx; rowerzysta pochylony 30°, dłonie na chwytach (IK), kierownica z ramą.
+- **Sprzedaż z ręki (kariera):** na rynku 3 klientów podchodzi do straganu i mówi, czego chce (dymek „Poproszę: …”). F przy rowerze — sztuka z koszyka do ręki (model kartonu/kubka/sera w dłoni), F przy kliencie — podanie (cena straganu +10%). Zły towar — klient odmawia, towar zostaje w ręku; F przy rowerze odkłada do koszyka. Hurtowa sprzedaż F na rynku wyłączona.
+- **Placówki z zamówień:** 6 istniejących kamienic wokół rynku w Zabielsku dostało szyld na wysięgniku (Szkoła, Sklep, Restauracja, Przedszkole, Kawiarnia, Hotel), odbiorcę przy wejściu i strefę dostawy (PlaceKind.Placowka). Pod placówką: F przy dostawczaku — skrzynka z zamówieniem do rąk, F przy odbiorcy — przekazanie. Mapa prowadzi do placówki z zamówieniem. Stara dostawa na rynek działa dalej.
+- **Hala:** UHT i ser żółty (NeedsCold = false) można zanieść z pakowania prosto do dostawczaka; reszta przez chłodnię. Pasek „Co dalej” to podpowiada.
+- **Testy:** kariera 44/44 (nowe: z ręki, placówki), produkcja 26/26. Test w grze: Kariera → 5 (bez zapisu): klienci, podanie (60 → 69,90 zł), placówka ze szyldem i odbiorcą. Budowa: Kariera → 4.
+
 # STAN NA 2026-11-15, 09:25 — świat, drzewa, rower (Claude)
 
 - **Drogi:** kolizja na 250 odcinkach (nogi i koła stoją na asfalcie, który leży ok. 12 cm nad terenem).

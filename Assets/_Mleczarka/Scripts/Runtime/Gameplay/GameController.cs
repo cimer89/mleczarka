@@ -136,8 +136,13 @@ namespace Mleczarka.Gameplay
 
         // ---------- przycisk akcji ----------
 
+        /// <summary>Akcje zależne od tego, co jest tuż obok (klient na rynku, odbiorca w placówce, koszyk roweru) — mają pierwszeństwo przed akcją miejsca.</summary>
+        public static System.Func<string> HintHook;
+        public static System.Func<Result?> ActionHook;
+
         public string ContextHint()
         {
+            var hook = HintHook?.Invoke(); if (hook != null) return hook;
             var p = Sim.S.players[Me]; var place = PlaceOf(Me); var v = player ? player.CurrentVehicle : null;
             bool tanker = v && p.vehicle == VehicleKind.Cysterna, van = v && p.vehicle == VehicleKind.Dostawczak;
             if (CareerSim.Active(p))
@@ -164,6 +169,8 @@ namespace Mleczarka.Gameplay
 
         public void DoContextAction()
         {
+            var hooked = ActionHook?.Invoke();
+            if (hooked.HasValue) { if (!string.IsNullOrEmpty(hooked.Value.Msg)) Say(hooked.Value.Msg, !hooked.Value.Ok); return; }
             var p = Sim.S.players[Me]; var place = PlaceOf(Me); var v = player ? player.CurrentVehicle : null;
             Result r = Result.Fail("Tu nie ma nic do zrobienia.");
             if (CareerSim.Active(p) && CareerAction(p, place, v, ref r)) { if (!string.IsNullOrEmpty(r.Msg)) Say(r.Msg, !r.Ok); return; }
@@ -211,7 +218,8 @@ namespace Mleczarka.Gameplay
                     return c.canister >= 1 ? "F — przelej mleko z bańki do lodówki   ·   Q przy sprzęcie — gotowanie" : "F — weź towar ze spiżarki do koszyka   ·   Q przy sprzęcie — gotowanie   ·   K — rozwój";
                 case PlaceKind.Rynek:
                     if (van) return null;
-                    return c.basket.Sum() > 0 ? $"F — sprzedaj z koszyka na straganie ({c.basket.Sum()} szt.)" : "Rynek: przywieź towar w koszyku roweru.";
+                    if (c.hand >= 0) return $"Masz w rękach: {GameData.P((Product)c.hand).Name} — podejdź do klienta, który tego chce";
+                    return c.basket.Sum() > 0 ? "Klienci czekają przy straganie — weź towar z koszyka roweru (F przy rowerze) i podaj klientowi" : "Rynek: przywieź towar w koszyku roweru.";
                 case PlaceKind.Mleczarnia:
                     if (!CareerSim.Allowed(p, "hala")) return "Hala mleczarni jest na sprzedaż — " + CareerSim.LockedText("hala");
                     return null;
@@ -232,7 +240,7 @@ namespace Mleczarka.Gameplay
                     r = p.career.canister >= 1 ? Bus.Send(new PourMilk(Me)) : Bus.Send(new LoadBasket(Me)); return true;
                 case PlaceKind.Rynek:
                     if (v) return false;
-                    r = Bus.Send(new SellBasket(Me)); return true;
+                    r = Result.Fail(p.career.hand >= 0 ? "Podejdź bliżej do klienta, który chce ten towar." : "Weź towar z koszyka roweru (F przy rowerze) i podaj go klientowi."); return true;
                 case PlaceKind.Mleczarnia:
                     if (CareerSim.Allowed(p, "hala")) return false;
                     r = Result.Fail(CareerSim.LockedText("hala")); return true;

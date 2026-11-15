@@ -427,6 +427,52 @@ namespace Mleczarka.Core
             return Ok($"+{o.reward} zł");
         }
 
+        // ---------- dostawa do placówki: skrzynka z dostawczaka niesiona do odbiorcy ----------
+
+        /// <summary>Indeks placówki (GameData.Clients) dla nazwy klienta zamówienia; -1 gdy nie ma.</summary>
+        public static int ClientIndex(string client) { for (int i = 0; i < GameData.Clients.Length; i++) if (GameData.Clients[i].name == client) return i; return -1; }
+
+        /// <summary>Wyjmuje z dostawczaka komplet towaru do zamówienia tej placówki (do rąk).</summary>
+        public Result CarryOrder(int pid, int oid)
+        {
+            var p = S.players[pid]; var o = S.orders.FirstOrDefault(x => x.id == oid); var pl = PlaceOf(pid);
+            if (pl.Kind != PlaceKind.Placowka) return Fail("Skrzynkę z zamówieniem wyjmuje się pod placówką.");
+            if (o == null || o.status != OrderStatus.Przyjete || o.owner != pid) return Fail("To nie jest twoje zamówienie.");
+            if (ClientIndex(o.client) != pl.FarmId) return Fail($"To zamówienie jest dla: {o.client}.");
+            if (p.carried.Sum() > 0) return Fail("Masz już skrzynkę w rękach.");
+            if (!CanDeliver(p, o))
+            {
+                var miss = Enumerable.Range(0, o.items.Length).Where(i => p.vanCargo[i] < o.items[i]).Select(i => $"{o.items[i] - p.vanCargo[i]}× {GameData.Products[i].Name}");
+                return Fail($"W dostawczaku brakuje: {string.Join(", ", miss)}.");
+            }
+            for (int i = 0; i < o.items.Length; i++) { p.vanCargo[i] -= o.items[i]; p.carried[i] += o.items[i]; }
+            p.carriedOrder = oid; p.carriedFromStore = true;
+            return Ok($"Niesiesz zamówienie dla: {o.client}. Podejdź do odbiorcy i naciśnij F.");
+        }
+
+        /// <summary>Przekazanie niesionej skrzynki odbiorcy w placówce.</summary>
+        public Result HandOverOrder(int pid)
+        {
+            var p = S.players[pid]; var o = S.orders.FirstOrDefault(x => x.id == p.carriedOrder); var pl = PlaceOf(pid);
+            if (o == null) return Fail("Nie niesiesz zamówienia.");
+            if (pl.Kind != PlaceKind.Placowka || ClientIndex(o.client) != pl.FarmId) return Fail($"Tę skrzynkę zanieś do: {o.client}.");
+            for (int i = 0; i < o.items.Length; i++) p.carried[i] -= o.items[i];
+            p.carriedOrder = -1; p.carriedFromStore = false;
+            p.money = M2(p.money + o.reward); p.earned += o.reward; p.delivered++; p.rep++;
+            o.status = OrderStatus.Dostarczone; o.doneAt = S.t;
+            Emit("delivered", pid, o.id, o.reward, o.client);
+            return Ok($"Przekazano zamówienie: {o.client}. +{o.reward} zł");
+        }
+
+        /// <summary>Odłożenie niesionej skrzynki z powrotem do dostawczaka (np. pomyłka).</summary>
+        public Result ReturnOrderToVan(int pid)
+        {
+            var p = S.players[pid]; if (p.carriedOrder < 0) return Fail("Nie niesiesz zamówienia.");
+            for (int i = 0; i < GameData.ProductCount; i++) { p.vanCargo[i] += p.carried[i]; p.carried[i] = 0; }
+            p.carriedOrder = -1; p.carriedFromStore = false;
+            return Ok("Odłożono skrzynkę do dostawczaka.");
+        }
+
         public (double value, int[] q) SellValue(int pid)
         {
             var p = S.players[pid]; var need = Reserved(pid); var q = new int[GameData.ProductCount]; double v = 0;

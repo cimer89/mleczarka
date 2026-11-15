@@ -18,7 +18,7 @@ namespace Mleczarka.EditorTools
         public static void Run()
         {
             _log = new StringBuilder(); _ok = _bad = 0;
-            try { Loop(); Locks(); Migration(); }
+            try { Loop(); Locks(); Migration(); HandSale(); Institutions(); }
             catch (System.Exception e) { _bad++; _log.AppendLine("WYJĄTEK " + e); }
             Directory.CreateDirectory("Screenshots"); File.WriteAllText("Screenshots/testy_kariery.txt", _log.ToString());
             Debug.Log($"[Mleczarka] Testy kariery: {_ok} OK, {_bad} błędów.");
@@ -92,6 +92,41 @@ namespace Mleczarka.EditorTools
             Check(CareerSim.Allowed(p, "skrzydlo"), "pełna ścieżka do skrzydła maszyn");
             S.t = 1; for (int i = 0; i < 2000; i++) sim.Tick(0.25);
             Check(S.orders.Count > 0, "z dostawczakiem pojawiają się zamówienia");
+        }
+
+        static void HandSale()
+        {
+            _log.AppendLine("Sprzedaż z ręki:");
+            var w = new World(); var S = Simulation.NewGame(GameMode.Kariera, 11); var sim = new Simulation(S, w); var p = S.players[0]; var c = p.career;
+            c.basket[(int)Product.Twarog] = 2;
+            Check(new TakeFromBasket(0, Product.Twarog).Execute(sim).Ok && c.hand == (int)Product.Twarog && c.basket[(int)Product.Twarog] == 1, "z koszyka do ręki");
+            Check(!new TakeFromBasket(0, Product.Twarog).Execute(sim).Ok, "druga sztuka — ręce zajęte");
+            Check(!new HandSell(0, Product.Twarog).Execute(sim).Ok && c.hand >= 0, "sprzedaż tylko na rynku");
+            w.place = new Place(PlaceKind.Rynek);
+            Check(!new HandSell(0, Product.Jogurt).Execute(sim).Ok && c.hand == (int)Product.Twarog, "klient chce czegoś innego — towar zostaje w ręku");
+            double before = p.money; var r = new HandSell(0, Product.Twarog).Execute(sim);
+            Check(r.Ok && c.hand == -1 && p.money > before && c.unitsSold == 1, "podanie klientowi: " + r.Msg);
+            Check(new TakeFromBasket(0, Product.Twarog).Execute(sim).Ok && new ReturnHand(0).Execute(sim).Ok && c.basket[(int)Product.Twarog] == 1 && c.hand == -1, "odłożenie do koszyka");
+            var back = JsonUtility.FromJson<GameState>(JsonUtility.ToJson(S)); Simulation.Migrate(back);
+            Check(back.players[0].career.hand == -1 && back.players[0].carriedOrder == -1, "zapis: puste ręce");
+        }
+
+        static void Institutions()
+        {
+            _log.AppendLine("Placówki:");
+            var w = new World(); var S = Simulation.NewGame(GameMode.Swobodna, 13); var sim = new Simulation(S, w); var p = S.players[0];
+            var o = new OrderState { id = 9001, client = "Szkoła", icon = "school", reward = 50, deadline = 1e9 }; o.items[(int)Product.Uht] = 4; S.orders.Add(o);
+            o.status = OrderStatus.Przyjete; o.owner = 0;
+            for (int i = 0; i < o.items.Length; i++) p.vanCargo[i] = o.items[i];
+            int school = Simulation.ClientIndex("Szkoła");
+            w.place = new Place(PlaceKind.Placowka, Simulation.ClientIndex("Sklep"));
+            Check(!new CarryOrder(0, o.id).Execute(sim).Ok, "zamówienie szkoły nie pod sklepem");
+            w.place = new Place(PlaceKind.Placowka, school);
+            Check(new CarryOrder(0, o.id).Execute(sim).Ok && p.vanCargo.Sum() == 0 && p.carried.Sum() == o.items.Sum() && p.carriedOrder == o.id, "skrzynka z dostawczaka do rąk");
+            Check(new ReturnOrderToVan(0).Execute(sim).Ok && p.vanCargo.Sum() == o.items.Sum() && p.carriedOrder == -1, "odłożenie do dostawczaka");
+            new CarryOrder(0, o.id).Execute(sim);
+            double before = p.money; var r = new HandOverOrder(0).Execute(sim);
+            Check(r.Ok && o.status == OrderStatus.Dostarczone && p.money > before && p.carried.Sum() == 0, "przekazanie odbiorcy: " + r.Msg);
         }
 
         static void Migration()

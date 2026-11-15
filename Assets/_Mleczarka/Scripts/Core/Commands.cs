@@ -49,6 +49,9 @@ namespace Mleczarka.Core
     public sealed class ClaimOrder : Cmd { public readonly int Order; public ClaimOrder(int pid, int o) : base(pid) { Order = o; } public override Result Execute(Simulation s) => s.ClaimOrder(PlayerId, Order); }
     public sealed class LoadVan : Cmd { public LoadVan(int pid) : base(pid) { } public override Result Execute(Simulation s) => s.LoadVan(PlayerId); }
     public sealed class UnloadVan : Cmd { public UnloadVan(int pid) : base(pid) { } public override Result Execute(Simulation s) => s.UnloadVan(PlayerId); }
+    public sealed class CarryOrder : Cmd { public readonly int Order; public CarryOrder(int pid, int o) : base(pid) { Order = o; } public override Result Execute(Simulation s) => s.CarryOrder(PlayerId, Order); }
+    public sealed class HandOverOrder : Cmd { public HandOverOrder(int pid) : base(pid) { } public override Result Execute(Simulation s) => s.HandOverOrder(PlayerId); }
+    public sealed class ReturnOrderToVan : Cmd { public ReturnOrderToVan(int pid) : base(pid) { } public override Result Execute(Simulation s) => s.ReturnOrderToVan(PlayerId); }
     public sealed class Deliver : Cmd { public readonly int Order; public Deliver(int pid, int o) : base(pid) { Order = o; } public override Result Execute(Simulation s) => s.Deliver(PlayerId, Order); }
     public sealed class SellRest : Cmd { public SellRest(int pid) : base(pid) { } public override Result Execute(Simulation s) => s.SellRest(PlayerId); }
     public sealed class SetVehicle : Cmd { public readonly VehicleKind Kind; public SetVehicle(int pid, VehicleKind k) : base(pid) { Kind = k; } public override Result Execute(Simulation s) => s.SetVehicle(PlayerId, Kind); }
