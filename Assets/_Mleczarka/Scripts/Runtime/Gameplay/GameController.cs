@@ -317,6 +317,19 @@ namespace Mleczarka.Gameplay
         static string NameOf(string productEnum) => System.Enum.TryParse<Product>(productEnum, out var p) ? GameData.P(p).Name : productEnum;
         public void Say(string msg, bool error = false) => Message?.Invoke(msg, error);
 
+        /// <summary>Przeskok czasu (szybki transport): symulacja biegnie krokami po 0,25 s, zdarzenia obsługiwane po drodze.</summary>
+        public void SkipTime(double seconds)
+        {
+            double left = seconds;
+            while (left > 0)
+            {
+                double dt = System.Math.Min(0.25, left); left -= dt;   // Sim.Tick przyjmuje najwyżej 0,25 s na krok
+                Sim.Tick(dt);
+                foreach (var e in Sim.Events) HandleEvent(e);
+                Sim.Events.Clear();
+            }
+        }
+
         // ---------- zapis ----------
 
         public void SaveGame()

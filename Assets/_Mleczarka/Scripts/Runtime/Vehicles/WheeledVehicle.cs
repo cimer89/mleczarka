@@ -58,6 +58,16 @@ namespace Mleczarka.Vehicles
             transform.SetPositionAndRotation(pos, _rb.rotation);
         }
 
+        /// <summary>Przenosi pojazd w inne miejsce (szybki transport): bez prędkości, na kołach.</summary>
+        public void PlaceAt(Vector3 pos, Quaternion rot)
+        {
+            if (!_rb) _rb = GetComponent<Rigidbody>();
+            _rb.linearVelocity = Vector3.zero; _rb.angularVelocity = Vector3.zero;
+            _rb.position = pos; _rb.rotation = rot;
+            transform.SetPositionAndRotation(pos, rot);
+            Physics.SyncTransforms();
+        }
+
         public void SetInput(float throttle, float steer, bool handbrake)
         {
             _throttle = Mathf.Clamp(throttle, -1f, 1f);

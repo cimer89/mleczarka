@@ -24,6 +24,8 @@ namespace Mleczarka.UI
         readonly List<(VisualElement el, VisualElement big, WorldPlace place)> _markers = new List<(VisualElement, VisualElement, WorldPlace)>();
         VisualElement _targetDot, _bigTargetDot;
         float _bigSize;
+        // szybki transport
+        VisualElement _travel; Label _travelInfo; Button _travelGo; WorldPlace _travelTo; bool _blockedByMap;
 
         MapInfo M => MapInfo.Instance;
         static MapUI _instance;
@@ -58,7 +60,7 @@ namespace Mleczarka.UI
             var bigFrame = Card(Panel, 22, 10, 10);
             var title = Row(); title.style.justifyContent = Justify.SpaceBetween; title.style.marginBottom = 6;
             title.Add(L("Gmina Zabielsk — mapa", 24, Brand, true));
-            title.Add(L("M — zamknij", 15, Muted, true));
+            title.Add(L("Kliknij miejsce — szybki transport   ·   M — zamknij", 15, Muted, true));
             bigFrame.Add(title);
             _bigMap = new VisualElement(); _bigMap.style.width = _bigSize; _bigMap.style.height = _bigSize; _bigMap.style.backgroundImage = new StyleBackground(M.mapTexture); Round(_bigMap, 12); _bigMap.style.overflow = Overflow.Hidden;
             bigFrame.Add(_bigMap);
@@ -66,6 +68,14 @@ namespace Mleczarka.UI
             legend.Add(Pill("● twoje gospodarstwa", Good, Color.white)); legend.Add(Pill("● Mleczpol", Bad, Color.white)); legend.Add(Pill("● wolne", Chip, Ink));
             legend.Add(Pill("■ mleczarnia", Brand, Color.white)); legend.Add(Pill("■ rynek", new Color(0.95f, 0.6f, 0.1f), Color.white)); legend.Add(Pill("★ cel", new Color(0.95f, 0.75f, 0.1f), Ink));
             bigFrame.Add(legend);
+            // panel szybkiego transportu (po kliknięciu miejsca na mapie)
+            _travel = Row(8); _travel.style.marginTop = 8; _travel.style.alignItems = Align.Center; _travel.style.display = DisplayStyle.None;
+            _travel.style.backgroundColor = new Color(1f, 1f, 1f, 0.6f); Round(_travel, 10); Pad(_travel, 6, 10);
+            _travelInfo = L("", 16, Ink, true); _travelInfo.style.flexGrow = 1; _travelInfo.style.whiteSpace = WhiteSpace.Normal;
+            _travel.Add(_travelInfo);
+            _travelGo = Btn("Jedź", DoTravel, Good, Color.white, 16, 34); _travel.Add(_travelGo);
+            _travel.Add(Btn("Anuluj", () => { _travelTo = null; _travel.style.display = DisplayStyle.None; }, Chip, Ink, 16, 34));
+            bigFrame.Add(_travel);
             _big.Add(bigFrame);
             foreach (var lab in M.labels)
             {
@@ -73,6 +83,7 @@ namespace Mleczarka.UI
                 var l = L(lab.name, lab.kind == 1 ? 20 : lab.kind == 4 ? 13 : 16, lab.kind == 3 ? Bad : lab.kind == 4 ? Muted : Ink, true);
                 l.style.position = Position.Absolute; l.style.left = u.x * _bigSize - 40; l.style.top = (1 - u.y) * _bigSize - 30;
                 l.style.backgroundColor = new Color(1, 1, 1, 0.75f); Round(l, 6); Pad(l, 1, 5);
+                l.pickingMode = PickingMode.Ignore;
                 _bigMap.Add(l);
             }
             _bigArrow = Arrow(26); _bigMap.Add(_bigArrow);
@@ -82,11 +93,47 @@ namespace Mleczarka.UI
             {
                 bool farm = p.kind == PlaceKind.Gospodarstwo;
                 var m = Dot(farm ? 12 : 16, !farm); _mini.Insert(_mini.childCount - 1, m);
-                var b = Dot(farm ? 14 : 18, !farm); _bigMap.Add(b);
+                var b = Dot(farm ? 18 : 22, !farm); _bigMap.Add(b);
+                b.pickingMode = PickingMode.Position; var place = p;
+                b.RegisterCallback<ClickEvent>(_ => SelectTravel(place));
+                b.tooltip = p.displayName;
                 _markers.Add((m, b, p));
             }
             _targetDot = Star(26); _mini.Insert(_mini.childCount - 1, _targetDot);
             _bigTargetDot = Star(30); _bigMap.Add(_bigTargetDot);
+        }
+
+        void SelectTravel(WorldPlace p)
+        {
+            if (!G || !p) return;
+            _travelTo = p; _travel.style.display = DisplayStyle.Flex;
+            var why = FastTravel.CanGo(G, p);
+            var mode = FastTravel.Current(G);
+            float km = FastTravel.Distance(G, p) / 1000f;
+            _travelInfo.text = why != null
+                ? $"{p.displayName}: {why}"
+                : $"Szybki transport {FastTravel.ModeName(mode)} do: {p.displayName} — {km:0.0} km, minie ok. {FastTravel.Duration(FastTravel.TravelSeconds(G, p))} czasu gry";
+            _travelGo.SetEnabled(why == null);
+        }
+
+        void DoTravel()
+        {
+            if (!G || !_travelTo) return;
+            var r = FastTravel.Go(G, _travelTo);
+            G.Say(r.Msg, !r.Ok);
+            _travelTo = null; _travel.style.display = DisplayStyle.None;
+            if (r.Ok) SetBig(false);
+        }
+
+        /// <summary>Duża mapa: kursor wolny, ruch postaci wstrzymany (blokadę zdejmujemy tylko, jeśli to mapa ją założyła).</summary>
+        void SetBig(bool open)
+        {
+            _big.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!open) { _travelTo = null; _travel.style.display = DisplayStyle.None; }
+            if (!G || !G.player) return;
+            if (open && !G.player.InputBlocked) { _blockedByMap = true; G.player.orbitWhenBlocked = false; G.player.InputBlocked = true; }
+            if (open) { UnityEngine.Cursor.lockState = CursorLockMode.None; UnityEngine.Cursor.visible = true; }
+            if (!open && _blockedByMap) { _blockedByMap = false; G.player.InputBlocked = false; }
         }
 
         static VisualElement Arrow(float s)
@@ -165,8 +212,8 @@ namespace Mleczarka.UI
         void Update()
         {
             var kb = Keyboard.current;
-            if (kb != null && kb.mKey.wasPressedThisFrame) _big.style.display = _big.style.display == DisplayStyle.None ? DisplayStyle.Flex : DisplayStyle.None;
-            if (kb != null && kb.escapeKey.wasPressedThisFrame) _big.style.display = DisplayStyle.None;
+            if (kb != null && kb.mKey.wasPressedThisFrame) SetBig(_big.style.display == DisplayStyle.None);
+            if (kb != null && kb.escapeKey.wasPressedThisFrame && _big.style.display == DisplayStyle.Flex) SetBig(false);
             if (!G) return;
 
             Vector3 pos = G.PlayerPosition;
