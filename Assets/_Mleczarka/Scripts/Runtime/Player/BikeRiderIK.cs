@@ -9,8 +9,8 @@ namespace Mleczarka.Player
     [RequireComponent(typeof(Animator))]
     public class BikeRiderIK : MonoBehaviour
     {
-        public float pedalRadius = 0.17f, pedalHalfWidth = 0.13f, footWeight = 1f, handWeight = 0.9f;
-        public float gripHeight = 0.56f, gripBack = 0.2f, gripHalfWidth = 0.26f;
+        public float pedalRadius = 0.17f, pedalHalfWidth = 0.13f, footWeight = 1f, handWeight = 1f;
+        public float gripHeight = 0.69f, gripBack = 0.16f, gripHalfWidth = 0.30f;
         /// <summary>Przesunięcie fazy pedałów względem modelu korby (stopnie) — dopasowanie do ramion korby w modelu.</summary>
         public float pedalPhase = 0f;
         Animator _anim; FarmerController _rider; Transform _bike, _front;
@@ -75,7 +75,7 @@ namespace Mleczarka.Player
             {
                 var rt = _rider.transform; var up = _bike.up;
                 var fwd = Vector3.ProjectOnPlane(rt.forward, up).normalized;
-                var steer = Quaternion.AngleAxis(_rider.BikeSteer * 0.7f, up);
+                var steer = Quaternion.identity; // kierownica jest częścią ramy
                 var f2 = steer * fwd; var r2 = Vector3.Cross(up, f2);
                 var bar = hub.position + up * gripHeight - f2 * gripBack;
                 var hr = Quaternion.LookRotation(f2, up);

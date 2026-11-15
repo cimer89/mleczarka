@@ -225,7 +225,7 @@ namespace Mleczarka.Player
         public float bikeAccel = 2.2f, bikeBrake = 6f, bikeWheelbase = 1.08f;
         const float bikeMaxSteer = 30f, bikeMaxLean = 20f;
         /// <summary>Pochylenie tułowia w przód, żeby dłonie sięgały kierownicy (poza z biblioteki siedzi prosto jak w aucie).</summary>
-        const float bikeRiderPitch = 16f;
+        const float bikeRiderPitch = 30f;
         float _steer, _lean, _crankAngle, _wheelAngle, _brakeHold;
         Transform _bikeFront, _bikeRear, _bikeCrank; Quaternion _rearRot, _crankRot;
         Transform[] _steerParts; Vector3[] _steerPos; Quaternion[] _steerRot;
@@ -337,7 +337,7 @@ namespace Mleczarka.Player
             foreach (var t in _bike.GetComponentsInChildren<Transform>(true))
             {
                 if (t.name.EndsWith("Korba_ObrotX")) { _bikeCrank = t; _crankRot = t.localRotation; }
-                else if ((t.name.Contains("Przod") || t.name.Contains("Koszyk")) && !t.name.Contains("Kolo")) parts.Add(t);
+                // kierownica i koszyk są częścią ramy — skręca tylko przednie koło
             }
             if (!_bikeFront) return;
             _steerParts = parts.ToArray();

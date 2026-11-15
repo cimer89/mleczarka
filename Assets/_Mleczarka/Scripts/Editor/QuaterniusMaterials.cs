@@ -118,6 +118,8 @@ namespace Mleczarka.EditorTools
                 new Spec { name = "Emalia_Biala", color = new Color(0.92f, 0.92f, 0.89f), smoothness = 0.65f },
                 new Spec { name = "Emalia_Kremowa", color = new Color(0.93f, 0.87f, 0.72f), smoothness = 0.7f },
                 new Spec { name = "Zeliwo", color = new Color(0.13f, 0.13f, 0.14f), smoothness = 0.4f, metallic = 0.6f },
+                new Spec { name = "Wiklina", color = new Color(0.66f, 0.49f, 0.27f), smoothness = 0.15f },
+                new Spec { name = "Wiklina_Ciemna", color = new Color(0.48f, 0.33f, 0.16f), smoothness = 0.12f },
                 new Spec { name = "Lakier_Rower", color = new Color(0.14f, 0.45f, 0.30f), smoothness = 0.65f, metallic = 0.3f },
                 new Spec { name = "Plotno", color = new Color(0.93f, 0.92f, 0.86f), smoothness = 0.1f },
                 new Spec { name = "Szklo_Sloik", color = new Color(0.80f, 0.92f, 0.94f, 0.45f), mode = Mode.Transparent, smoothness = 0.95f },
