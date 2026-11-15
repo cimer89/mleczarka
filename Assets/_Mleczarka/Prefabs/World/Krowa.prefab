@@ -72,7 +72,13 @@ MonoBehaviour:
   turnSpeed: 50
   own: 0
   cowName: Krasula
+  cowNameAcc: "Krasul\u0119"
   milkReach: 2.8
+  controller: {fileID: 9100000, guid: ef8bf33c39dd80a429dc8201cd03b72c, type: 2}
+  hasArea: 0
+  areaCenter: {x: 0, y: 0, z: 0}
+  areaHalf: {x: 0, y: 0}
+  areaYaw: 0
 --- !u!1001 &5506739804571014720
 PrefabInstance:
   m_ObjectHideFlags: 0
