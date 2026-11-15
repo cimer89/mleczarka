@@ -127,20 +127,26 @@ namespace Mleczarka.ProductionFloor
             if (!bike) return;
             if (G.player.OnBike)
             {
+                var yaw = G.player.BikeYawOffset;
                 G.player.SetBike(false);
                 bike.SetParent(null, true);
                 var t = G.player.transform;
-                bike.position = t.position + t.right * 0.8f; bike.rotation = t.rotation;
+                bike.position = t.position + t.right * 0.8f; bike.rotation = t.rotation * Quaternion.Euler(0, yaw, 0);
                 bike.gameObject.SetActive(true);
                 return;
             }
             float d = Vector3.Distance(bike.position, G.player.transform.position);
             if (d > 3f) { G.Say($"Rower stoi {d:0} m stąd — podejdź do niego (E albo B).", true); return; }
-            G.player.transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(bike.forward, Vector3.up));
+            // postać przechodzi na rower (rower zostaje w miejscu), a nie rower doskakuje do postaci
+            var cc = G.player.GetComponent<CharacterController>(); if (cc) cc.enabled = false;
+            // kierunek jazdy: od tylnego koła do przedniego (model może mieć przód po stronie -Z)
+            var front = Mleczarka.Player.FarmerController.BikeFront(bike, out _, out _);
+            G.player.transform.SetPositionAndRotation(bike.position + Vector3.up * 0.05f, Quaternion.LookRotation(Vector3.ProjectOnPlane(front, Vector3.up)));
+            if (cc) cc.enabled = true;
             bike.SetParent(G.player.transform, false);
             bike.localPosition = Vector3.zero; bike.localRotation = Quaternion.identity;
             G.player.SetBike(true, bike);
-            G.Say("Na rowerze: WASD — jazda, Shift — szybciej, E albo B — zsiądź.");
+            G.Say("Na rowerze: W — pedałuj, S — hamuj, A/D — kierownica, Shift — mocniej, E albo B — zsiądź.");
         }
 
         void HandleKeys(Keyboard kb)
@@ -191,14 +197,8 @@ namespace Mleczarka.ProductionFloor
             return d.Kind == StepKind.Auto || (Time.time - _handsAt < 0.8f && _near != null && _near.id == station);
         }
 
-        void SpinBike()
-        {
-            if (!G.player || !G.player.OnBike) return;
-            float spin = G.player.CurrentSpeed / 0.34f * Mathf.Rad2Deg * Time.deltaTime;
-            if (_bikeFront) _bikeFront.localRotation *= Quaternion.AngleAxis(spin, Vector3.right);
-            if (_bikeRear) _bikeRear.localRotation *= Quaternion.AngleAxis(spin, Vector3.right);
-            if (_bikeCrank) _bikeCrank.localRotation *= Quaternion.AngleAxis(spin * 0.45f, Vector3.right);
-        }
+        // koła i korbę roweru obraca teraz FarmerController (razem z kierownicą i pedałowaniem)
+        void SpinBike() { }
 
         void Animate()
         {

@@ -29,6 +29,9 @@ namespace Mleczarka.ProductionFloor.EditorTools
             var sm = ctrl.layers[0].stateMachine;
             AnimatorState jump = S(sm, "Skok"), air = S(sm, "W powietrzu"), land = S(sm, "Lądowanie"), loco = S(sm, "Ruch");
             if (!jump || !air || !land || !loco) { Debug.LogWarning("[Mleczarka] Skok: brak stanów w Rolnik.controller."); return; }
+            // rower: stopy na pedałach i dłonie na kierownicy (BikeRiderIK) wymagają IK Pass w warstwie bazowej
+            var layers = ctrl.layers;
+            if (!layers[0].iKPass) { layers[0].iKPass = true; ctrl.layers = layers; EditorUtility.SetDirty(ctrl); AssetDatabase.SaveAssets(); Debug.Log("[Mleczarka] Rower: włączone IK Pass w warstwie bazowej."); }
             bool done = jump.transitions.Any(t => t.destinationState == loco);
             if (done && !force) return;
 

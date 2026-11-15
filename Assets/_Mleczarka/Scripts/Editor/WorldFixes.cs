@@ -141,6 +141,46 @@ namespace Mleczarka.EditorTools
             log.AppendLine($"Liście TwistedTree: letnia zieleń w {n} materiałach");
         }
 
+        [MenuItem("Mleczarka/Testy/Drzewa: kolizja pni wg modelu")]
+        public static void TrunkMenu()
+        {
+            var log = new StringBuilder(); TrunkColliders(log); AssetDatabase.SaveAssets();
+            Directory.CreateDirectory("Screenshots"); File.WriteAllText("Screenshots/kolizja_pni.txt", log.ToString());
+            Debug.Log("[Mleczarka] Kolizja pni: Screenshots/kolizja_pni.txt");
+        }
+
+        /// <summary>
+        /// Kolizja drzewa była stałą kapsułą 0,35 m — grube pnie (do 1,5 m promienia) dało się przejść na wylot.
+        /// Promień i środek liczymy z wierzchołków kory na wysokości 0,3–2 m (80. centyl odległości od osi).
+        /// </summary>
+        static void TrunkColliders(StringBuilder log)
+        {
+            foreach (var path in Directory.GetFiles(TREES, "*.prefab"))
+            {
+                var pf = AssetDatabase.LoadAssetAtPath<GameObject>(path.Replace('\\', '/'));
+                var mf = pf ? pf.GetComponent<MeshFilter>() : null; var mr = pf ? pf.GetComponent<MeshRenderer>() : null;
+                if (!mf || !mf.sharedMesh || !mr) continue;
+                var mesh = mf.sharedMesh; var verts = mesh.vertices; var mats = mr.sharedMaterials;
+                var pts = new List<Vector3>();
+                for (int sm = 0; sm < mesh.subMeshCount; sm++)
+                {
+                    var mat = mats[Mathf.Min(sm, mats.Length - 1)];
+                    if (!mat || !(mat.name.Contains("Bark") || mat.name.Contains("Trunk") || mat.name.Contains("Wood"))) continue;
+                    foreach (int i in mesh.GetTriangles(sm)) { var v = verts[i]; if (v.y > 0.3f && v.y < 2.0f) pts.Add(v); }
+                }
+                if (pts.Count < 10) { log.AppendLine($"{pf.name}: za mało wierzchołków kory ({pts.Count}) — bez zmian"); continue; }
+                var c = new Vector3(pts.Average(p => p.x), 0, pts.Average(p => p.z));
+                var d = pts.Select(p => new Vector2(p.x - c.x, p.z - c.z).magnitude).OrderBy(x => x).ToList();
+                float r = Mathf.Clamp(d[(int)(d.Count * 0.8f)], 0.25f, 2.5f);
+                float top = Mathf.Min(mesh.bounds.max.y * 0.6f, 8f), h = Mathf.Max(top, r * 2 + 0.5f);
+                var col = pf.GetComponent<CapsuleCollider>(); if (!col) col = pf.AddComponent<CapsuleCollider>();
+                col.direction = 1; col.radius = r; col.height = h; col.center = new Vector3(c.x, h / 2, c.z);
+                EditorUtility.SetDirty(pf); PrefabUtility.SavePrefabAsset(pf);
+                log.AppendLine($"{pf.name}: promień pnia {r:0.00} m, środek ({c.x:0.00}, {c.z:0.00}), wysokość {h:0.0} m");
+            }
+            foreach (var t in Terrain.activeTerrains) { t.terrainData.RefreshPrototypes(); t.Flush(); var tc = t.GetComponent<TerrainCollider>(); if (tc) { tc.enabled = false; tc.enabled = true; } }
+        }
+
         static void Trees(StringBuilder log)
         {
             // skala jak przy istniejących drzewach liściastych

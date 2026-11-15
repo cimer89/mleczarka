@@ -1,3 +1,12 @@
+# STAN NA 2026-11-15, 09:25 — świat, drzewa, rower (Claude)
+
+- **Drogi:** kolizja na 250 odcinkach (nogi i koła stoją na asfalcie, który leży ok. 12 cm nad terenem).
+- **Maszyny w skrzydle:** stały 16 cm nad posadzką (lampka stanu w modelu zaniżała dół) — poprawiony builder, skrzydło przebudowane, lampki na korpusach.
+- **Rampa:** 12 słupków pod poręczami. Pomiar: menu Testy → Pomiar: lewitowanie i zapadanie.
+- **Drzewa:** +5 gatunków (TwistedTree, letnie liście), ~40 tys. podmienionych, większy rozrzut wielkości. Kolizja pni z modelu (promień 0,4–1,6 m zamiast stałych 0,35 m). Test w grze (Testy → Drzewa: czy da się przejść): 14 z 15 rodzajów zatrzymuje postać.
+- **Kamera:** zoom kółkiem myszy.
+- **Rower:** W pedałuje (rozpędzanie), S hamuje (po zatrzymaniu cofa), A/D kierownica (skręt zależny od prędkości), przechył w zakrętach (do 20°), kręcące się koła i korba, przednie koło i kosz skręcają; stopy na pedałach (IK), dłonie przy kierownicy, rowerzysta na siodełku (korekta z kości miednicy), tułów pochylony. Wsiadanie: postać przechodzi na rower. Naprawione: model rowerzysty był obrócony tyłem (nadpisany obrót modelu). Test: Testy → Rower: jazda, zakręt, hamowanie.
+
 # STAN NA 2026-11-14, 22:30 — rower i skok (Claude)
 
 - **Rower w każdym trybie:** E albo B przy rowerze przy domu (letnia kuchnia), podpowiedź „E / B — wsiądź na rower”. Wcześniej działał tylko w karierze, więc w starym zapisie i trybie swobodnym nie dało się wsiąść.
