@@ -66,7 +66,7 @@ namespace Mleczarka.ProductionFloor.EditorTools
                     c.basket[(int)Product.Twarog] = 2; c.basket[(int)Product.MlekoPast] = 2; c.basket[(int)Product.Smietana] = 2;
                     var s = hs.marketSpots[0];
                     // rower i gracz przy rynku, kilka metrów od klientów
-                    home.bike.position = s.position - s.forward * 4f + s.right * 2.5f; home.bike.rotation = Quaternion.LookRotation(s.right);
+                    home.bike.position = s.position + s.forward * 5f + s.right * 2.5f; home.bike.rotation = Quaternion.LookRotation(s.right);
                     Teleport(home.bike.position - s.right * 1.2f + Vector3.up * 0.2f, Quaternion.LookRotation(s.position - home.bike.position).eulerAngles.y);
                     _log.AppendLine($"klientów miejsc: {hs.marketSpots.Length}, odbiorców: {hs.receivers.Length}");
                     _next = t + 9; break;   // klienci podchodzą
@@ -75,12 +75,28 @@ namespace Mleczarka.ProductionFloor.EditorTools
                 case 2: g.DoContextAction(); _log.AppendLine($"w ręku: {(c.hand >= 0 ? GameData.P((Product)c.hand).Name : "nic")}, koszyk {c.basket.Sum()}"); _next = t + 0.5; break;
                 case 3:
                 {
-                    // podejdź do klienta, który chce tego, co trzymasz (albo do najbliższego)
-                    var cust = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Where(a => a.name == "Klient na rynku").OrderBy(x => Vector3.Distance(x.position, g.player.transform.position)).ToList();
-                    Transform best = null;
-                    foreach (var x in cust) { Teleport(x.position + x.forward * 1.4f, 0); if ((g.ContextHint() ?? "").StartsWith("F — podaj")) { best = x; break; } }
-                    if (!best && cust.Count > 0) best = cust[0];
-                    if (best) { var pos = best.position + best.forward * 1.4f; Teleport(pos, Quaternion.LookRotation(best.position - pos).eulerAngles.y); }
+                    // podejdź do klienta od strony placu: start 6 m przed nim, potem krokami z kolizjami (jak chód) aż do lady
+                    var cust = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Where(a => a.name == "Klient na rynku" && hs.marketSpots.Any(sp => Vector3.Distance(sp.position, a.position) < 1.0f)).OrderBy(x => Vector3.Distance(x.position, g.player.transform.position)).ToList();
+                    _log.AppendLine($"klientów przy straganach: {cust.Count}, zasięg podania {hs.customerReach:0.0} m");
+                    var cc = g.player.GetComponent<CharacterController>();
+                    foreach (var x in cust)
+                    {
+                        var start = x.position + x.forward * 6f + Vector3.up * 0.3f;
+                        Teleport(start, Quaternion.LookRotation(-x.forward).eulerAngles.y);
+                        Physics.SyncTransforms();
+                        float walked = 0; string hint = "";
+                        for (int i = 0; i < 120; i++)
+                        {
+                            var to = x.position - g.player.transform.position; to.y = 0;
+                            var before = g.player.transform.position;
+                            cc.Move(to.normalized * 0.05f + Vector3.down * 0.02f); walked += 0.05f;
+                            hint = g.ContextHint() ?? "";
+                            if (hint.StartsWith("F — podaj") || (g.player.transform.position - before).sqrMagnitude < 0.0001f) break;
+                        }
+                        var d = x.position - g.player.transform.position; d.y = 0;
+                        _log.AppendLine($"podejście do klienta: odległość {d.magnitude:0.00} m, przed klientem: {Vector3.Dot(-d, x.forward) > 0}, podpowiedź: {hint}");
+                        if (hint.StartsWith("F — podaj")) break;
+                    }
                     _next = t + 1; break;
                 }
                 case 4: _log.AppendLine("podpowiedź przy kliencie: " + g.ContextHint()); ScreenCapture.CaptureScreenshot(Dir + "02_podanie.png"); _next = t + 0.5; break;

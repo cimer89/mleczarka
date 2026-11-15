@@ -24,7 +24,7 @@ namespace Mleczarka.ProductionFloor
         public GameObject cartonModel, cupModel, cheeseModel, cheeseCutModel;
         public Transform[] marketSpots;
         public Receiver[] receivers;
-        public float customerReach = 2.3f, bikeReach = 2.6f, vanReach = 4.5f;
+        public float customerReach = 3.6f, bikeReach = 2.6f, vanReach = 4.5f;
 
         static readonly Product[] CareerGoods = { Product.Twarog, Product.MlekoPast, Product.Jogurt, Product.Kefir, Product.Smietana, Product.Maslo, Product.Ser };
 

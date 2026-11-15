@@ -30,7 +30,7 @@ namespace Mleczarka.ProductionFloor.EditorTools
             if (!market) { Debug.LogError("[Mleczarka] Brak rynku w scenie."); return; }
             var old = GameObject.Find(RootName); if (old) Object.DestroyImmediate(old);
             var root = new GameObject(RootName).transform;
-            var hs = root.gameObject.AddComponent<HandSales>();
+            var hs = root.gameObject.AddComponent<HandSales>(); hs.customerReach = 3.6f;
             hs.npcPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Mleczarka/Prefabs/Production/Pracownik.prefab");
             const string K = "Assets/_Mleczarka/Art/ThirdParty/Kenney/FoodKit/Models/FBX format/";
             hs.cartonModel = AssetDatabase.LoadAssetAtPath<GameObject>(K + "carton-small.fbx");
@@ -39,47 +39,99 @@ namespace Mleczarka.ProductionFloor.EditorTools
             hs.cheeseCutModel = AssetDatabase.LoadAssetAtPath<GameObject>(K + "cheese-cut.fbx");
             Physics.SyncTransforms();
 
-            // ---- klienci: 3 miejsca przy rynku, z dala od ścian ----
-            var c = market.transform.position; var spots = new List<Transform>();
-            for (int a = 0; a < 24 && spots.Count < 3; a++)
+            // ---- klienci: za straganami na rynku (gracz podchodzi od strony placu) ----
+            var c = market.transform.position; var spots = new List<Transform>(); float serveReach = 3.6f;
+            var stalls = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None)
+                .Where(t => t.name.StartsWith("Stragan_Rynek") && (t.parent == null || !t.parent.name.StartsWith("Stragan_Rynek")) && Flat(t.position - c) < market.radius + 10f)
+                .OrderBy(t => Mathf.Atan2(t.position.x - c.x, t.position.z - c.z)).ToList();
+            foreach (var st in stalls)
             {
-                float ang = a * 47f;
-                var dir = Quaternion.Euler(0, ang, 0) * Vector3.forward;
-                var p = Ground(c + dir * 4.0f);
-                if (Blocked(p) || spots.Any(s => Vector3.Distance(s.position, p) < 2.5f)) continue;
+                var rs = st.GetComponentsInChildren<Renderer>(); if (rs.Length == 0) continue;
+                var sb = rs[0].bounds; foreach (var r in rs) sb.Encapsulate(r.bounds);
+                var outward = sb.center - c; outward.y = 0; outward.Normalize();
+                float along = Mathf.Abs(Vector3.Dot(sb.extents, new Vector3(Mathf.Abs(outward.x), 0, Mathf.Abs(outward.z))));
+                // lada zmierzona promieniami na wysokości 0,3–1,4 m (bez daszku): tył (strona sprzedawcy) i przód (strona placu)
+                var cols = st.GetComponentsInChildren<Collider>();
+                var mid = new Vector3(sb.center.x, 0, sb.center.z); float gy = Ground(mid).y;
+                float back = along, front = along; bool measured = false;
+                if (cols.Length > 0)
+                {
+                    back = 0; front = 0;
+                    foreach (var h in new[] { 0.3f, 0.6f, 0.9f, 1.2f, 1.4f })
+                        foreach (var side in new[] { -0.4f, 0f, 0.4f })
+                        {
+                            var lat = Vector3.Cross(Vector3.up, outward) * side;
+                            var o = new Vector3(mid.x, gy + h, mid.z) + lat;
+                            foreach (var col in cols)
+                            {
+                                if (col.Raycast(new Ray(o + outward * 12f, -outward), out var hb, 12f)) { back = Mathf.Max(back, 12f - hb.distance); measured = true; }
+                                if (col.Raycast(new Ray(o - outward * 12f, outward), out var hf, 12f)) { front = Mathf.Max(front, 12f - hf.distance); measured = true; }
+                            }
+                        }
+                    if (!measured) { back = along; front = along; }
+                }
+                var p = Ground(mid + outward * (back + 0.45f));
                 var s = new GameObject("Miejsce klienta " + (spots.Count + 1)).transform; s.SetParent(root, false);
-                s.position = p; s.rotation = Quaternion.LookRotation(-dir); spots.Add(s);
+                s.position = p; s.rotation = Quaternion.LookRotation(-outward); spots.Add(s);
+                serveReach = Mathf.Max(serveReach, back + 0.45f + front + 1.1f);
+                log.AppendLine($"  stragan {st.name}: głębokość z daszkiem {along * 2:0.0} m, lada: tył {back:0.00} m, przód {front:0.00} m od środka (pomiar promieniem: {measured})");
             }
-            hs.marketSpots = spots.ToArray();
-            log.AppendLine($"Rynek: {market.displayName} ({c:F0}), promień {market.radius}; miejsca klientów: {spots.Count}");
+            if (spots.Count == 0)
+                for (int a = 0; a < 24 && spots.Count < 3; a++)
+                {
+                    var dir = Quaternion.Euler(0, a * 47f, 0) * Vector3.forward;
+                    var p = Ground(c + dir * 4.0f);
+                    if (Blocked(p) || spots.Any(x => Vector3.Distance(x.position, p) < 2.5f)) continue;
+                    var s = new GameObject("Miejsce klienta " + (spots.Count + 1)).transform; s.SetParent(root, false);
+                    s.position = p; s.rotation = Quaternion.LookRotation(-dir); spots.Add(s);
+                }
+            hs.marketSpots = spots.ToArray(); hs.customerReach = serveReach;
+            log.AppendLine($"Rynek: {market.displayName} ({c:F0}), promień {market.radius}; stragany: {stalls.Count}, miejsca klientów za straganami: {spots.Count}, zasięg podania {serveReach:0.0} m");
 
-            // ---- placówki: istniejące budynki wokół rynku ----
-            var cands = new List<(Bounds b, string name)>();
+            // ---- placówki: istniejące budynki rozrzucone po całej gminie, przy drogach ----
+            var zones = Object.FindObjectsByType<WorldPlace>(FindObjectsSortMode.None).Where(w => w.kind != PlaceKind.Placowka).ToList();
+            var cands = new List<(Bounds b, string name, Vector3 road)>();
             foreach (var col in Object.FindObjectsByType<Collider>(FindObjectsSortMode.None))
             {
                 if (col.isTrigger || col is TerrainCollider || col is WheelCollider) continue;
-                var b = col.bounds; float d = Flat(b.center - c);
-                if (d < market.radius + 9f || d > 150f) continue;
+                var b = col.bounds;
                 if (b.size.y < 3f || b.size.y > 16f) continue;
                 float w = Mathf.Max(b.size.x, b.size.z), n = Mathf.Min(b.size.x, b.size.z);
                 if (w < 6f || w > 26f || n < 4.5f) continue;
                 string path = Path(col.transform);
                 if (Skip.Any(k => path.Contains(k))) continue;
+                // nie w gospodarstwie, mleczarni, domu gracza ani na samym rynku
+                if (zones.Any(z => Flat(z.transform.position - b.center) < z.radius + (z.kind == PlaceKind.Rynek ? 9f : 6f))) continue;
                 if (cands.Any(x => Flat(x.b.center - b.center) < 7f)) continue;
-                cands.Add((b, path));
+                // dojazd: najbliższy odcinek drogi w promieniu 35 m
+                Vector3? road = null; float best = 35f;
+                foreach (var rc in Physics.OverlapSphere(b.center, 35f))
+                {
+                    if (!rc.name.StartsWith("odcinek") || !(rc is MeshCollider)) continue;
+                    var cp = rc.ClosestPoint(b.center); float d = Flat(cp - b.center);
+                    if (d < best) { best = d; road = cp; }
+                }
+                if (road == null) continue;
+                cands.Add((b, path, road.Value));
             }
-            var chosen = new List<(Bounds b, string name)>();
-            foreach (var x in cands.OrderBy(x => Flat(x.b.center - c)))
+            // rozrzut: najwyżej jedna placówka na miejscowość; pierwsza w miasteczku przy rynku,
+            // każda kolejna w miejscowości najdalej od już wybranych (żeby dostawy prowadziły w różne strony gminy)
+            string Village(string path) { var parts = path.Split('/'); return parts.Length > 2 && parts[1] == "Wsie" ? parts[2] : (parts.Length > 1 ? parts[1] : parts[0]); }
+            var groups = cands.GroupBy(x => Village(x.name)).Select(gr => gr.OrderBy(x => Flat(x.road - x.b.center)).First()).ToList();
+            log.AppendLine("Miejscowości z budynkami przy drodze: " + string.Join(", ", cands.GroupBy(x => Village(x.name)).Select(gr => $"{gr.Key} ({gr.Count()})")));
+            var chosen = new List<(Bounds b, string name, Vector3 road)>();
+            if (groups.Count > 0) chosen.Add(groups.OrderBy(x => Flat(x.b.center - c)).First());
+            while (chosen.Count < GameData.Clients.Length && chosen.Count < groups.Count)
             {
-                if (chosen.Count >= GameData.Clients.Length) break;
-                if (chosen.Any(y => Flat(y.b.center - x.b.center) < 16f)) continue;
-                chosen.Add(x);
+                var next = groups.Where(x => !chosen.Contains(x))
+                                 .OrderByDescending(x => Mathf.Min(Flat(x.b.center - c), chosen.Min(y => Flat(y.b.center - x.b.center)))).First();
+                chosen.Add(next);
             }
             var recs = new List<HandSales.Receiver>();
             for (int i = 0; i < chosen.Count; i++)
             {
-                var (b, name) = chosen[i];
-                var toMarket = c - b.center; toMarket.y = 0;
+                var (b, name, road) = chosen[i];
+                var toMarket = road - b.center; toMarket.y = 0;   // ściana od strony drogi
                 // ściana zwrócona do rynku: oś budynku najbliższa kierunkowi do rynku
                 Vector3 dir = Mathf.Abs(toMarket.x) / b.extents.x > Mathf.Abs(toMarket.z) / b.extents.z ? new Vector3(Mathf.Sign(toMarket.x), 0, 0) : new Vector3(0, 0, Mathf.Sign(toMarket.z));
                 float ext = Vector3.Scale(b.extents, new Vector3(Mathf.Abs(dir.x), 0, Mathf.Abs(dir.z))).magnitude;
@@ -110,7 +162,8 @@ namespace Mleczarka.ProductionFloor.EditorTools
                 var steel = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Mleczarka/Art/FactoryInterior/Stal_granatowa.mat");
                 if (steel) arm.GetComponent<Renderer>().sharedMaterial = steel;
                 recs.Add(new HandSales.Receiver { client = i, point = point, name = GameData.Clients[i].name });
-                log.AppendLine($"{GameData.Clients[i].name}: budynek „{name}” {b.center:F0}, rozmiar {b.size:F0}, odbiorca {door:F0}");
+                var nearZone = zones.OrderBy(z => Flat(z.transform.position - b.center)).FirstOrDefault();
+                log.AppendLine($"{GameData.Clients[i].name}: budynek „{name}” {b.center:F0}, {Flat(b.center - c):F0} m od rynku, najbliżej: {(nearZone ? nearZone.displayName : "-")}, odbiorca {door:F0}");
             }
             hs.receivers = recs.ToArray();
             if (chosen.Count < GameData.Clients.Length) log.AppendLine($"UWAGA: znaleziono tylko {chosen.Count} budynków na placówki.");
